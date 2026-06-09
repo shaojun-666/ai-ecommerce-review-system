@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+env/
+*.so
+
+# Node
+node_modules/
+dist/
+*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+*.pem
+
+# Database
+*.db
+*.sqlite3
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
+
+# NLP models
+nlp/data/models/*
+!nlp/data/models/.gitkeep
+
+# Data
+nlp/data/raw/*
+!nlp/data/raw/.gitkeep
+nlp/data/processed/*
+!nlp/data/processed/.gitkeep
+
+# Notebooks checkpoint
+.ipynb_checkpoints/
+
+# Logs
+*.log
+logs/
+
+# Claude Code
+.claude/
+
+# Project local
+报错信息.txt
