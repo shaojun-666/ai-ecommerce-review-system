@@ -15,8 +15,8 @@ def clean_text(text: str) -> str:
 
 def normalize_rating(rating) -> int:
     try:
-        r = int(float(rating))
-        return max(1, min(5, r))
+        r = round(float(rating))
+        return max(1, min(5, int(r)))
     except (ValueError, TypeError):
         return 3
 

@@ -1,7 +1,5 @@
-from nlp.src import data_processing
-from nlp.src import models
-from nlp.src import training
-from nlp.src import evaluation
-from nlp.src import inference
+"""NLP module package.
 
-__all__ = ["data_processing", "models", "training", "evaluation", "inference"]
+Sub-modules with heavy dependencies (torch, transformers) are imported
+lazily to allow testing of lightweight utilities without installing them.
+"""

@@ -55,7 +55,7 @@ import { analysisApi } from "@/api"
 
 const route = useRoute()
 const loading = ref(false)
-const task = ref(null)
+const task = ref<any>(null)
 const results = ref([])
 
 const statusMap: Record<string, string> = {

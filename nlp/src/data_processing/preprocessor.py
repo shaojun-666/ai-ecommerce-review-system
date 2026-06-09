@@ -13,11 +13,11 @@ class ReviewPreprocessor:
         if not text:
             return ""
 
+        # Remove URLs first (before removing whitespace)
+        text = re.sub(r"https?://\S+", "", text)
+
         # Normalize whitespace
         text = re.sub(r"\s+", "", text)
-
-        # Remove URLs
-        text = re.sub(r"https?://\S+", "", text)
 
         # Normalize punctuation
         text = text.replace("…", "...")

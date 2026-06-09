@@ -15,7 +15,7 @@ from transformers import (
 )
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 
-from nlp.src.data_processing.preprocessor import ReviewPreprocessor
+from src.data_processing.preprocessor import ReviewPreprocessor
 
 logger = logging.getLogger(__name__)
 

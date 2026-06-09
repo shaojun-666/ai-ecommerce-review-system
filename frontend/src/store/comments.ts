@@ -16,7 +16,7 @@ export const useCommentsStore = defineStore("comments", {
       try {
         const res = await commentsApi.list({ ...this.filters, ...params })
         this.comments = res.data?.items || res.data || []
-        this.total = res.meta?.total || 0
+        this.total = res.data?.total || 0
       } catch {
         this.comments = []
         this.total = 0

@@ -15,8 +15,8 @@ from transformers import (
 )
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 
-from nlp.src.data_processing.preprocessor import ReviewPreprocessor
-from nlp.src.models.bert.config import BERTConfig
+from src.data_processing.preprocessor import ReviewPreprocessor
+from src.models.bert.config import BERTConfig
 
 logger = logging.getLogger(__name__)
 

@@ -2,6 +2,15 @@
 
 基于 AI 的电商评论智能分析系统，支持多平台评论采集、情感分析、关键词提取、虚假评论检测等功能。
 
+## Project Status
+
+| Module | Tests | Status |
+|---|---|---|
+| Backend (Flask API) | 23/23 passed | ✅ Complete |
+| Frontend (Vue 3) | Build successful | ✅ Complete |
+| NLP Module | 40 passed, 3 skipped | ✅ Complete |
+| Docker Deployment | - | 🔄 Pending |
+
 ## Tech Stack
 
 **Backend**
@@ -18,10 +27,11 @@
 - ECharts 数据可视化
 
 **NLP / AI**
-- BERT 中文情感分析模型
-- 关键词提取 (TF-IDF / TextRank)
-- 虚假评论检测
-- 数据分析与可视化 (Pandas / Jupyter)
+- BERT 中文情感分析模型 (3分类: positive/neutral/negative)
+- Qwen2.5-1.5B-Instruct LLM 分析模型
+- 关键词提取 (jieba + TF-IDF)
+- 虚假评论检测 (启发式规则 + 评分融合)
+- 商品属性级情感分析 (aspect-based sentiment)
 
 **DevOps**
 - Docker Compose (PostgreSQL, Redis, Backend, Celery, Nginx)
@@ -112,26 +122,34 @@ celery -A app.tasks worker -l info
 ```
 ├── backend/              # Flask API 服务
 │   ├── app/
-│   │   ├── api/          # RESTful 路由
-│   │   ├── models/       # 数据库模型
-│   │   ├── services/     # 业务逻辑层
+│   │   ├── api/          # RESTful 路由 (auth, products, comments, analysis, dashboard)
+│   │   ├── models/       # 数据库模型 (User, Product, Comment, CommentAnalysis, AnalysisTask)
+│   │   ├── services/     # 业务逻辑层 (auth, comment, analysis, sentiment, report)
 │   │   ├── tasks/        # Celery 异步任务
 │   │   ├── utils/        # 工具函数
-│   │   └── config/       # 配置文件
+│   │   └── config/       # 配置文件 (Development, Testing, Production)
 │   ├── migrations/       # 数据库迁移
-│   └── tests/            # 测试
+│   └── tests/            # 测试 (23 tests)
 ├── frontend/             # Vue 3 前端
 │   └── src/
-│       ├── views/        # 页面
+│       ├── views/        # 页面 (Dashboard, Analysis, Products, Comments, Login)
 │       ├── components/   # 公共组件
 │       ├── api/          # API 请求
 │       ├── store/        # Pinia 状态
 │       └── router/       # 路由配置
-├── nlp/                  # NLP 模型
-│   ├── src/              # 模型代码
+├── nlp/                  # NLP 模型模块
+│   ├── src/
+│   │   ├── data_processing/  # 数据预处理 (cleaner, preprocessor, tokenizer)
+│   │   ├── models/           # 模型定义 (BERT, LLM)
+│   │   │   ├── bert/         # BERT 情感分类模型
+│   │   │   └── llm/          # Qwen2.5 LLM 分析模型
+│   │   ├── training/         # 训练流程 (trainer, evaluator, optimizer)
+│   │   ├── inference/        # 推理服务 (predictor, postprocessor)
+│   │   └── evaluation/       # 评估工具 (metrics, error_analysis)
+│   ├── tests/            # NLP 测试 (40 passed, 3 skipped)
 │   └── notebooks/        # Jupyter notebooks
 ├── scripts/              # 部署脚本
-└── docs/                 # 文档
+└── docs/                 # 文档 (项目实现方案, 开发日志)
 ```
 
 ## API Overview
@@ -154,6 +172,30 @@ celery -A app.tasks worker -l info
 |---|---|---|
 | `admin` | `admin123` | 管理员 |
 | `user` | `user123` | 普通用户 |
+
+## Testing
+
+### Backend Tests
+```bash
+cd backend
+pytest tests/ -v
+# 23 tests covering API, Auth, Models
+```
+
+### NLP Tests
+```bash
+cd nlp
+pytest tests/ -v
+# 40 tests covering cleaner, preprocessor, postprocessor,
+# error analysis, LLM analyzer; 3 skipped (requires sklearn)
+```
+
+### Frontend Build
+```bash
+cd frontend
+npm run build
+# Vite build (~2322 modules, ~380KB gzip)
+```
 
 ## License
 

@@ -33,7 +33,7 @@ export const useAnalysisStore = defineStore("analysis", {
       try {
         const res = await analysisApi.getResults(id, params)
         this.results = res.data?.items || res.data || []
-        this.resultsTotal = res.meta?.total || 0
+        this.resultsTotal = res.data?.total || 0
         return res
       } catch {
         this.results = []
