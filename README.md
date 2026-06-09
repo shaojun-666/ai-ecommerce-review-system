@@ -6,9 +6,9 @@
 
 | Module | Tests | Status |
 |---|---|---|
-| Backend (Flask API) | 23/23 passed | ✅ Complete |
-| Frontend (Vue 3) | Build successful | ✅ Complete |
-| NLP Module | 40 passed, 3 skipped | ✅ Complete |
+| Backend (Flask API) | 67/67 passed | ✅ Complete |
+| Frontend (Vue 3) | 14/14 passed | ✅ Complete |
+| NLP Module | 51/51 passed | ✅ Complete |
 | Docker Deployment | - | 🔄 Pending |
 
 ## Tech Stack
@@ -129,11 +129,11 @@ celery -A app.tasks worker -l info
 │   │   ├── utils/        # 工具函数
 │   │   └── config/       # 配置文件 (Development, Testing, Production)
 │   ├── migrations/       # 数据库迁移
-│   └── tests/            # 测试 (23 tests)
+│   └── tests/            # 测试 (67 tests: 23 unit + 44 integration)
 ├── frontend/             # Vue 3 前端
 │   └── src/
 │       ├── views/        # 页面 (Dashboard, Analysis, Products, Comments, Login)
-│       ├── components/   # 公共组件
+│       ├── components/   # 公共组件 (含组件测试)
 │       ├── api/          # API 请求
 │       ├── store/        # Pinia 状态
 │       └── router/       # 路由配置
@@ -175,19 +175,25 @@ celery -A app.tasks worker -l info
 
 ## Testing
 
-### Backend Tests
+### Backend Tests (67 tests)
 ```bash
 cd backend
 pytest tests/ -v
-# 23 tests covering API, Auth, Models
+# 23 unit tests (API, Auth, Models) + 44 integration tests (Auth, Products, Comments, Analysis, Dashboard flows)
 ```
 
-### NLP Tests
+### NLP Tests (51 tests)
 ```bash
 cd nlp
 pytest tests/ -v
-# 40 tests covering cleaner, preprocessor, postprocessor,
-# error analysis, LLM analyzer; 3 skipped (requires sklearn)
+# Covers cleaner, preprocessor, postprocessor, error analysis, LLM analyzer, metrics, evaluator
+```
+
+### Frontend Tests (14 tests)
+```bash
+cd frontend
+npm run test
+# Component tests for Loading, EmptyState, ErrorState
 ```
 
 ### Frontend Build

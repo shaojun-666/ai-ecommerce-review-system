@@ -3,6 +3,7 @@ import jwt
 from app.extensions import db
 from app.models.user import User
 from app.utils.errors import Unauthorized
+from app.utils.time import utcnow
 
 
 def _get_secret():
@@ -21,7 +22,7 @@ def _get_refresh_expires():
 
 
 def generate_token(user):
-    now = datetime.datetime.utcnow()
+    now = utcnow()
     access_payload = {
         "sub": user.id,
         "role": user.role,
@@ -58,7 +59,7 @@ def refresh_access_token(refresh_token_str):
     if not user or not user.is_active:
         raise Unauthorized("User not found or inactive")
 
-    now = datetime.datetime.utcnow()
+    now = utcnow()
     secret = _get_secret()
     access_payload = {
         "sub": user.id,

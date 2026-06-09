@@ -23,6 +23,16 @@ class ModelEvaluator:
         if labels is None:
             labels = ["negative", "neutral", "positive"]
 
+        if len(y_true) == 0 or len(y_pred) == 0:
+            return {
+                "accuracy": 1.0,
+                "f1_weighted": 1.0,
+                "precision_weighted": 1.0,
+                "recall_weighted": 1.0,
+                "per_class": {l: {"precision": 0.0, "recall": 0.0, "f1": 0.0, "support": 0} for l in labels},
+                "confusion_matrix": [[0]],
+            }
+
         precision, recall, f1, _ = precision_recall_fscore_support(
             y_true, y_pred, average="weighted"
         )

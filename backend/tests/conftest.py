@@ -1,3 +1,10 @@
+"""Test fixtures and configuration."""
+import os
+
+# Use in-memory Celery transport for testing (avoids Redis dependency)
+os.environ["CELERY_BROKER_URL"] = "memory://"
+os.environ["CELERY_RESULT_BACKEND"] = "cache+memory://"
+
 import pytest
 from app import create_app
 from app.extensions import db as _db

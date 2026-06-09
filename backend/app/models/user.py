@@ -3,6 +3,11 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from app.extensions import db
 
 
+def utcnow():
+    """Column-default-friendly wrapper for timezone-aware UTC now."""
+    return datetime.datetime.now(datetime.UTC)
+
+
 class User(db.Model):
     __tablename__ = "users"
 
@@ -12,8 +17,8 @@ class User(db.Model):
     password_hash = db.Column(db.String(256), nullable=False)
     role = db.Column(db.String(20), nullable=False, default="user")  # admin | user
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
     # Relationships
     analysis_tasks = db.relationship("AnalysisTask", backref="user", lazy="dynamic")

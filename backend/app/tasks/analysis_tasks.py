@@ -6,6 +6,7 @@ from app.extensions import db
 from app.models.analysis_task import AnalysisTask
 from app.models.comment import Comment, CommentAnalysis
 from app.services.sentiment_service import SentimentService
+from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -24,13 +25,13 @@ def run_analysis(self, task_id: int, comment_ids: list[int],
         service = SentimentService(model_path=model_path, model_name=model_name)
     except RuntimeError as e:
         task.status = "failed"
-        task.completed_at = datetime.datetime.utcnow()
+        task.completed_at = utcnow()
         task.result_summary = {"error": str(e)}
         db.session.commit()
         return {"error": str(e)}
 
     task.status = "processing"
-    task.timeout_at = datetime.datetime.utcnow() + datetime.timedelta(hours=1)
+    task.timeout_at = utcnow() + datetime.timedelta(hours=1)
     db.session.commit()
 
     processed = 0
@@ -58,7 +59,7 @@ def run_analysis(self, task_id: int, comment_ids: list[int],
             analysis.summary = result.get("summary")
             analysis.fake_score = result.get("fake_score")
             analysis.model_version = result.get("model_version")
-            analysis.analyzed_at = datetime.datetime.utcnow()
+            analysis.analyzed_at = utcnow()
 
             processed += 1
             task.processed_count = processed
@@ -76,7 +77,7 @@ def run_analysis(self, task_id: int, comment_ids: list[int],
     task.failed_count = failed
     task.error_count = failed
     task.status = "completed_with_errors" if failed > 0 else "completed"
-    task.completed_at = datetime.datetime.utcnow()
+    task.completed_at = utcnow()
     task.result_summary = {
         "total": len(comment_ids),
         "processed": processed,

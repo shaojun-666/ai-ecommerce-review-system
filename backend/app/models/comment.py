@@ -2,6 +2,11 @@ import datetime
 from app.extensions import db
 
 
+def utcnow():
+    """Column-default-friendly wrapper for timezone-aware UTC now."""
+    return datetime.datetime.now(datetime.UTC)
+
+
 class Comment(db.Model):
     __tablename__ = "comments"
 
@@ -14,8 +19,8 @@ class Comment(db.Model):
     platform = db.Column(db.String(50), default="")
     source = db.Column(db.String(50), default="import")
     purchase_time = db.Column(db.DateTime)
-    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
     analysis = db.relationship("CommentAnalysis", backref="comment", uselist=False, cascade="all, delete-orphan")
 
@@ -51,7 +56,7 @@ class CommentAnalysis(db.Model):
     summary = db.Column(db.Text)
     fake_score = db.Column(db.Float)  # 0.0 - 1.0, higher = more likely fake
     model_version = db.Column(db.String(64))
-    analyzed_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    analyzed_at = db.Column(db.DateTime, default=utcnow)
 
     def to_dict(self):
         return {

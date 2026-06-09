@@ -2,6 +2,11 @@ import datetime
 from app.extensions import db
 
 
+def utcnow():
+    """Column-default-friendly wrapper for timezone-aware UTC now."""
+    return datetime.datetime.now(datetime.UTC)
+
+
 class AnalysisTask(db.Model):
     __tablename__ = "analysis_tasks"
 
@@ -17,8 +22,8 @@ class AnalysisTask(db.Model):
     timeout_at = db.Column(db.DateTime)
     result_summary = db.Column(db.JSON)
     celery_task_id = db.Column(db.String(128))
-    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utcnow)
+    updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
     completed_at = db.Column(db.DateTime)
 
     # Relationships

@@ -5,11 +5,12 @@ from flask import request, jsonify, current_app
 import jwt
 from app.extensions import db
 from app.models.user import User
+from app.utils.time import utcnow
 
 
 def generate_token(user: User) -> tuple[str, str]:
     """Generate access + refresh token pair."""
-    now = datetime.datetime.utcnow()
+    now = utcnow()
     access_payload = {
         "sub": user.id,
         "role": user.role,
