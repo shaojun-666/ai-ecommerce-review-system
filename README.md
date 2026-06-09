@@ -9,7 +9,7 @@
 | Backend (Flask API) | 67/67 passed | ✅ Complete |
 | Frontend (Vue 3) | 14/14 passed | ✅ Complete |
 | NLP Module | 51/51 passed | ✅ Complete |
-| Docker Deployment | - | 🔄 Pending |
+| Docker Deployment | 5/5 containers healthy | ✅ Complete |
 
 ## Tech Stack
 
@@ -42,69 +42,63 @@
 
 ### Prerequisites
 
-- Python 3.10+
-- Node.js 18+
-- Docker & Docker Compose (可选)
+- Docker & Docker Compose (推荐)
+- Python 3.10+ (本地开发)
+- Node.js 18+ (前端开发)
 
-### 1. Clone & Setup
+### 方式一：Docker 一键部署（推荐）
 
 ```bash
+# 1. 克隆项目
 git clone https://github.com/shaojun-666/ai-ecommerce-review-system.git
 cd ai-ecommerce-review-system
+
+# 2. 配置环境变量
+cp .env.example .env
+# 编辑 .env 文件，修改 JWT_SECRET_KEY 等敏感信息
+
+# 3. 启动所有服务
+docker compose up -d
+
+# 4. 访问
+# Frontend: http://localhost
+# Backend API: http://localhost:8000/api
+# API Docs: http://localhost:8000/api/docs
+
+# 5. 控制
+# docker compose stop     # 暂停（保留数据）
+# docker compose down     # 停止并删除容器
+# docker compose down -v  # 停止并删除容器+数据卷
 ```
 
-### 2. Backend Setup
+### 方式二：本地开发
 
 ```bash
+# 1. 启动依赖服务
+docker compose up -d postgres redis
+
+# 2. Backend Setup
 cd backend
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-```
-
-### 3. Database
-
-使用 Docker 启动 PostgreSQL 和 Redis：
-
-```bash
-docker compose up -d postgres redis
-```
-
-初始化数据库：
-
-```bash
 flask db upgrade
 python scripts/seed_data.py
-```
-
-### 4. Run Backend
-
-```bash
-flask run
-# 或使用 gunicorn
 gunicorn -w 4 -b 0.0.0.0:8000 wsgi:app
-```
 
-### 5. Frontend Setup
-
-```bash
+# 3. Frontend Setup (新终端)
 cd frontend
 npm install
 npm run dev
-```
 
-### 6. Start Celery Worker (可选，用于异步分析任务)
-
-```bash
+# 4. Celery Worker (可选，异步分析任务)
 cd backend
 celery -A app.tasks worker -l info
+
+# 5. Access
+# Frontend: http://localhost:5173
+# Backend API: http://localhost:8000
 ```
-
-### 7. Access
-
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:8000
-- API Docs: http://localhost:8000/api/docs
 
 ## Environment Variables
 
