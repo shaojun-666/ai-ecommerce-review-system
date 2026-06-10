@@ -6,6 +6,7 @@ from app.extensions import db
 from app.models.analysis_task import AnalysisTask
 from app.models.comment import Comment, CommentAnalysis
 from app.services.sentiment_service import SentimentService
+from app.utils.text_cleaner import clean_text
 from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
@@ -44,7 +45,7 @@ def run_analysis(self, task_id: int, comment_ids: list[int],
             if not comment:
                 continue
 
-            result = service.analyze(comment.content)
+            result = service.analyze(clean_text(comment.content))
 
             analysis = CommentAnalysis.query.filter_by(comment_id=comment_id).first()
             if not analysis:

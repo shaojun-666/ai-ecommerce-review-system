@@ -112,7 +112,7 @@ class TestCrawlTaskE2E:
                 from app.crawler.base import CrawlerResult
                 instance.crawl_all.return_value = CrawlerResult(
                     product={"name": "测试商品", "platform_product_id": "123456", "platform": "jd"},
-                    reviews=[{"content": "唯一评论", "rating": 5, "author_name": "用户X", "platform": "jd", "purchase_time": "2024-01-01"}],
+                    reviews=[{"content": "唯一的一条评论", "rating": 5, "author_name": "用户X", "platform": "jd", "purchase_time": "2024-01-01"}],
                     total_pages=1, current_page=1, items_found=1,
                 )
                 run_crawl(self.task_id)
@@ -134,7 +134,7 @@ class TestCrawlTaskE2E:
                 from app.crawler.base import CrawlerResult
                 instance.crawl_all.return_value = CrawlerResult(
                     product={"name": "测试商品", "platform_product_id": "123456", "platform": "jd"},
-                    reviews=[{"content": "唯一评论", "rating": 5, "author_name": "用户X", "platform": "jd", "purchase_time": "2024-01-01"}],
+                    reviews=[{"content": "唯一的一条评论", "rating": 5, "author_name": "用户X", "platform": "jd", "purchase_time": "2024-01-01"}],
                     total_pages=1, current_page=1, items_found=1,
                 )
                 run_crawl(task2.id)

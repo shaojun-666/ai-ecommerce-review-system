@@ -14,6 +14,7 @@ class Comment(db.Model):
     product_id = db.Column(db.Integer, db.ForeignKey("products.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     content = db.Column(db.Text, nullable=False)
+    content_hash = db.Column(db.String(64), index=True)  # SHA-256 for dedup
     rating = db.Column(db.SmallInteger)  # 1-5
     author_name = db.Column(db.String(100), default="")
     platform = db.Column(db.String(50), default="")
@@ -27,6 +28,7 @@ class Comment(db.Model):
     __table_args__ = (
         db.Index("idx_comments_product_created", "product_id", "created_at"),
         db.Index("idx_comments_rating", "rating"),
+        db.Index("idx_comments_hash_product", "content_hash", "product_id"),
     )
 
     def to_dict(self):

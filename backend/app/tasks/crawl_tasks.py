@@ -6,7 +6,7 @@ Provides:
 """
 import logging
 import traceback
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from app.tasks import celery_app
 from app.extensions import db
@@ -14,6 +14,7 @@ from app.models.crawl_task import CrawlTask
 from app.models.product import Product
 from app.models.comment import Comment
 from app.crawler.adapters.jd import JDCrawler
+from app.services.data_pipeline import DataPipeline
 from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
@@ -96,63 +97,51 @@ def run_crawl(self, crawl_task_id: int):
             # Update task product link
             task.product_id = product.id
 
-        # Insert comments (dedup by content per product)
+        # Insert comments via DataPipeline
         new_count = 0
         fail_count = 0
-        seen_contents = set()
         if product and result.reviews:
-            # Find existing comment contents for this product
-            existing = db.session.query(Comment.content).filter(
-                Comment.product_id == product.id
-            ).all()
-            seen_contents = {r[0] for r in existing}
+            # Set source for pipeline
+            for r in result.reviews:
+                r.setdefault("source", "crawl")
 
-            batch = []
-            for review in result.reviews:
-                content = review.get("content", "").strip()
-                if not content or content in seen_contents:
-                    continue
+            pipeline_result, processed = DataPipeline.process_batch(
+                result.reviews, product.id, session=db.session,
+            )
 
-                seen_contents.add(content)
-                # Parse purchase_time string to date if needed
-                pt = review.get("purchase_time")
-                if isinstance(pt, str):
+            # Bulk insert processed reviews
+            if processed:
+                batch_size = 50
+                for i in range(0, len(processed), batch_size):
+                    batch = processed[i:i + batch_size]
                     try:
-                        pt = datetime.strptime(pt, "%Y-%m-%d").date()
-                    except ValueError:
-                        pt = None
-                batch.append(Comment(
-                    product_id=product.id,
-                    content=content,
-                    rating=review.get("rating"),
-                    author_name=review.get("author_name", ""),
-                    platform="jd",
-                    source="crawl",
-                    purchase_time=pt,
-                ))
-
-                # Flush in batches of 50
-                if len(batch) >= 50:
-                    try:
-                        db.session.bulk_save_objects(batch)
+                        db.session.bulk_save_objects([
+                            Comment(
+                                product_id=product.id,
+                                content=pr.content,
+                                content_hash=pr.content_hash,
+                                rating=pr.rating,
+                                author_name=pr.author_name,
+                                platform=pr.platform or "jd",
+                                source=pr.source,
+                                purchase_time=pr.purchase_time,
+                            )
+                            for pr in batch
+                        ])
                         db.session.commit()
                         new_count += len(batch)
-                        batch = []
                     except Exception as e:
                         db.session.rollback()
                         fail_count += len(batch)
                         logger.error("Batch insert failed: %s", e)
-                        batch = []
 
-            if batch:
-                try:
-                    db.session.bulk_save_objects(batch)
-                    db.session.commit()
-                    new_count += len(batch)
-                except Exception as e:
-                    db.session.rollback()
-                    fail_count += len(batch)
-                    logger.error("Final batch insert failed: %s", e)
+            # Log filtering stats
+            if pipeline_result.filtered:
+                logger.info(
+                    "Filtered %d invalid reviews (total=%d, dup=%d, filtered=%d)",
+                    pipeline_result.filtered, pipeline_result.total,
+                    pipeline_result.skipped_dup, pipeline_result.filtered,
+                )
 
         # Update task status
         task.status = "completed"

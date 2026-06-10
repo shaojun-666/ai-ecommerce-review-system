@@ -6,7 +6,7 @@
 
 | Module | Tests | Status |
 |---|---|---|
-| Backend (Flask API + Crawler) | 126/126 passed | ✅ Complete |
+| Backend (Flask API + Crawler + Data Pipeline) | 175/175 passed | ✅ Complete |
 | Frontend (Vue 3) | 14/14 passed | ✅ Complete |
 | NLP Module | 94/104 passed | ✅ Complete (10 ONNX need network) |
 | Docker Deployment | 5/5 containers healthy | ✅ Complete |
@@ -119,12 +119,12 @@ celery -A app.tasks worker -l info
 │   │   ├── api/          # RESTful 路由 (auth, products, comments, analysis, dashboard, crawl)
 │   │   ├── crawler/      # 爬虫引擎 (base, anti_bot, adapters/jd)
 │   │   ├── models/       # 数据库模型 (User, Product, Comment, CommentAnalysis, AnalysisTask, CrawlTask)
-│   │   ├── services/     # 业务逻辑层 (auth, comment, analysis, sentiment, report)
+│   │   ├── services/     # 业务逻辑层 (auth, comment, analysis, sentiment, report, data_pipeline)
 │   │   ├── tasks/        # Celery 异步任务
-│   │   ├── utils/        # 工具函数
+│   │   ├── utils/        # 工具函数 (time, response, errors, validators, text_cleaner)
 │   │   └── config/       # 配置文件 (Development, Testing, Production)
 │   ├── migrations/       # 数据库迁移
-│   └── tests/            # 测试 (126 tests: 23 unit + 44 integration + 59 crawler)
+│   └── tests/            # 测试 (175 tests: 23 unit + 44 integration + 59 crawler + 49 data_pipeline)
 ├── frontend/             # Vue 3 前端
 │   └── src/
 │       ├── views/        # 页面 (Dashboard, Analysis, Products, Comments, Login)
@@ -176,11 +176,11 @@ celery -A app.tasks worker -l info
 
 ## Testing
 
-### Backend Tests (126 tests)
+### Backend Tests (175 tests)
 ```bash
 cd backend
 pytest tests/ -v
-# 23 unit tests (API, Auth, Models) + 44 integration tests (Auth, Products, Comments, Analysis, Dashboard flows) + 59 crawler tests (anti_bot, base, jd_adapter, e2e)
+# 23 unit tests (API, Auth, Models) + 44 integration tests (Auth, Products, Comments, Analysis, Dashboard flows) + 59 crawler tests (anti_bot, base, jd_adapter, e2e) + 49 data_pipeline tests (text_cleaner, dedup, integration)
 ```
 
 ### NLP Tests (94 tests)
@@ -197,7 +197,7 @@ npm run test
 # Component tests for Loading, EmptyState, ErrorState
 ```
 
-### Full Test Suite (234 tests)
+### Full Test Suite (283 tests)
 ```bash
 cd backend && pytest tests/ -v && cd ../nlp && pytest tests/ -v && cd ../frontend && npm run test
 ```
