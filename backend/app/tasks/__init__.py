@@ -17,3 +17,4 @@ celery_app = Celery(
 )
 
 from app.tasks import analysis_tasks  # noqa: E402, F401
+from app.tasks import crawl_tasks  # noqa: E402, F401

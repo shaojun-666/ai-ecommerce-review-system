@@ -1,6 +1,13 @@
 import re
 
 
+def validate_url(url: str) -> bool:
+    """Basic URL validation — checks for http/https scheme."""
+    if not url:
+        return False
+    return bool(re.match(r"^https?://", url.strip()))
+
+
 def validate_email(email):
     pattern = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
     return bool(re.match(pattern, email.strip())) if email else False

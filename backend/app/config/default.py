@@ -47,6 +47,14 @@ class DefaultConfig:
             "task": "app.tasks.analysis_tasks.check_timeout_tasks",
             "schedule": 300,
         },
+        "check-crawl-timeouts": {
+            "task": "app.tasks.crawl_tasks.check_crawl_timeouts",
+            "schedule": 300,
+        },
+        "schedule-due-crawls": {
+            "task": "app.tasks.crawl_tasks.schedule_due_crawls",
+            "schedule": 60,
+        },
     }
 
     LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
