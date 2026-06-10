@@ -1,9 +1,19 @@
 <template>
   <div>
-    <h2>数据看板</h2>
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px">
+      <h2 style="margin: 0">数据看板</h2>
+      <div style="display: flex; align-items: center; gap: 12px">
+        <span v-if="lastUpdated" style="font-size: 12px; color: #999">
+          最后更新: {{ lastUpdated }}
+        </span>
+        <el-button size="small" :loading="refreshing" @click="manualRefresh">
+          刷新
+        </el-button>
+      </div>
+    </div>
 
     <Loading :loading="loading">
-      <el-row :gutter="20" style="margin-top: 20px">
+      <el-row :gutter="20" style="margin-top: 8px">
         <el-col :span="6" v-for="stat in stats" :key="stat.label">
           <el-card shadow="hover">
             <div style="text-align: center">
@@ -25,6 +35,22 @@
           <el-card>
             <template #header>情感趋势 (近30天)</template>
             <div ref="trendRef" style="height: 350px"></div>
+          </el-card>
+        </el-col>
+      </el-row>
+
+      <el-row :gutter="20" style="margin-top: 20px">
+        <el-col :span="12">
+          <el-card>
+            <template #header>关键词词云</template>
+            <div ref="wordCloudRef" style="height: 350px">无关键词</div>
+            <EmptyState :loading="false" :data="keywordData" description="暂无关键词数据" />
+          </el-card>
+        </el-col>
+        <el-col :span="12">
+          <el-card>
+            <template #header>最新评论</template>
+            <LatestComments :comments="latestComments" :loading="latestLoading" />
           </el-card>
         </el-col>
       </el-row>
@@ -60,15 +86,27 @@ import { ref, onMounted, onUnmounted, nextTick } from "vue"
 import { analysisApi } from "@/api"
 import request from "@/utils/request"
 import Loading from "@/components/common/Loading.vue"
+import EmptyState from "@/components/common/EmptyState.vue"
+import LatestComments from "@/components/dashboard/LatestComments.vue"
 import * as echarts from "echarts"
+import "echarts-wordcloud"
 
 const loading = ref(true)
+const refreshing = ref(false)
 const taskLoading = ref(false)
+const lastUpdated = ref("")
 const recentTasks = ref<any[]>([])
+const keywordData = ref<any[] | null>(null)
+const latestComments = ref<any[]>([])
+const latestLoading = ref(false)
+
 const pieRef = ref<HTMLElement>()
 const trendRef = ref<HTMLElement>()
+const wordCloudRef = ref<HTMLElement>()
 let pieChart: any = null
 let trendChart: any = null
+let wordCloudChart: any = null
+let refreshTimer: number | null = null
 
 const stats = ref([
   { label: "评论总数", value: 0, color: "#409EFF" },
@@ -83,6 +121,11 @@ const statusMap: Record<string, string> = {
   completed: "success",
   failed: "danger",
   completed_with_errors: "warning",
+}
+
+function updateTimestamp() {
+  const now = new Date()
+  lastUpdated.value = now.toLocaleTimeString("zh-CN", { hour12: false })
 }
 
 const renderPie = (sentiment: any) => {
@@ -120,18 +163,58 @@ const renderTrend = (data: any[]) => {
   })
 }
 
+const renderWordCloud = (data: any[]) => {
+  if (!wordCloudRef.value) return
+  if (!wordCloudChart) wordCloudChart = echarts.init(wordCloudRef.value)
+  if (!data?.length) {
+    wordCloudChart.clear()
+    return
+  }
+  wordCloudChart.setOption({
+    tooltip: { show: true },
+    series: [{
+      type: "wordCloud",
+      shape: "circle",
+      left: "center",
+      top: "center",
+      width: "90%",
+      height: "90%",
+      sizeRange: [12, 48],
+      rotationRange: [0, 0],
+      gridSize: 8,
+      drawOutOfBound: false,
+      layoutAnimation: true,
+      textStyle: {
+        fontFamily: "Arial, sans-serif",
+        fontWeight: "bold",
+        color: () => {
+          const colors = ["#409EFF", "#67C23A", "#E6A23C", "#F56C6C", "#909399", "#B37FEB", "#79BBFF"]
+          return colors[Math.floor(Math.random() * colors.length)]
+        },
+      },
+      data: data.map((d: any) => ({
+        name: d.word,
+        value: d.count,
+      })),
+    }],
+  })
+}
+
 const resizeCharts = () => {
   pieChart?.resize()
   trendChart?.resize()
+  wordCloudChart?.resize()
 }
 
-onMounted(async () => {
-  loading.value = true
+const fetchData = async (silent = false) => {
+  if (!silent) loading.value = true
   try {
-    const [overviewRes, trendRes, taskRes] = await Promise.all([
+    const [overviewRes, trendRes, taskRes, keywordRes, latestRes] = await Promise.all([
       request.get("/dashboard/overview").catch(() => ({ data: null })),
       request.get("/dashboard/trend", { params: { days: 30 } }).catch(() => ({ data: [] })),
       analysisApi.listTasks({ per_page: 10 }).catch(() => ({ data: { items: [] } })),
+      request.get("/dashboard/keywords", { params: { limit: 50 } }).catch(() => ({ data: [] })),
+      request.get("/dashboard/latest-comments", { params: { limit: 10 } }).catch(() => ({ data: [] })),
     ])
 
     const overview = overviewRes?.data
@@ -147,18 +230,45 @@ onMounted(async () => {
 
     if (trendRes?.data) renderTrend(trendRes.data)
     recentTasks.value = taskRes?.data?.items || []
+
+    // Word cloud
+    const wcData = keywordRes?.data || []
+    keywordData.value = wcData
+    await nextTick()
+    renderWordCloud(wcData)
+
+    // Latest comments
+    latestComments.value = latestRes?.data || []
+
+    updateTimestamp()
   } catch {
     // handled
   } finally {
     loading.value = false
+    refreshing.value = false
   }
+}
+
+const manualRefresh = () => {
+  refreshing.value = true
+  fetchData(true)
+}
+
+onMounted(async () => {
+  await fetchData()
+  refreshTimer = window.setInterval(() => fetchData(true), 30000)
 })
 
-window.addEventListener("resize", resizeCharts)
-
 onUnmounted(() => {
+  if (refreshTimer !== null) {
+    clearInterval(refreshTimer)
+    refreshTimer = null
+  }
   window.removeEventListener("resize", resizeCharts)
   pieChart?.dispose()
   trendChart?.dispose()
+  wordCloudChart?.dispose()
 })
+
+window.addEventListener("resize", resizeCharts)
 </script>

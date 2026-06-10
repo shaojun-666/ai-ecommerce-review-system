@@ -108,6 +108,40 @@ def get_trend_data(days=30):
     return sorted(trend_map.values(), key=lambda x: x["date"])
 
 
+def get_latest_comments(limit=10):
+    """Return the most recently analyzed comments with sentiment labels."""
+    rows = (
+        db.session.query(
+            CommentAnalysis.comment_id,
+            CommentAnalysis.sentiment,
+            CommentAnalysis.sentiment_score,
+            CommentAnalysis.fake_score,
+            Comment.content,
+            Product.name.label("product_name"),
+            CommentAnalysis.analyzed_at,
+        )
+        .join(Comment, CommentAnalysis.comment_id == Comment.id)
+        .join(Product, Comment.product_id == Product.id)
+        .filter(CommentAnalysis.analyzed_at.isnot(None))
+        .order_by(CommentAnalysis.analyzed_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+    return [
+        {
+            "comment_id": r.comment_id,
+            "content": (r.content or "")[:100],
+            "sentiment": r.sentiment,
+            "sentiment_score": round(float(r.sentiment_score), 4) if r.sentiment_score else None,
+            "fake_score": round(float(r.fake_score), 4) if r.fake_score else None,
+            "product_name": r.product_name or "",
+            "analyzed_at": r.analyzed_at.isoformat() if r.analyzed_at else None,
+        }
+        for r in rows
+    ]
+
+
 def get_keyword_rank(limit=30):
     rows = (
         db.session.query(CommentAnalysis.keywords)

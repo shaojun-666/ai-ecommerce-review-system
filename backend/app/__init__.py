@@ -4,7 +4,7 @@ from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
-from app.extensions import db, migrate
+from app.extensions import db, migrate, init_redis
 from app.config import get_config
 
 
@@ -20,6 +20,9 @@ def create_app(config_name: str = "development") -> Flask:
     migrate.init_app(app, db)
     CORS(app, supports_credentials=True, origins=app.config.get("CORS_ORIGINS", "*"))
     limiter.init_app(app)
+
+    # Initialize Redis
+    init_redis(app)
 
     # Register blueprints
     from app.api.v1 import api_bp

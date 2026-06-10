@@ -23,6 +23,7 @@ const routes = [
       { path: "comments", name: "Comments", component: () => import("@/views/Comments.vue") },
       { path: "analysis", name: "AnalysisList", component: () => import("@/views/AnalysisList.vue") },
       { path: "analysis/:taskId", name: "AnalysisResult", component: () => import("@/views/AnalysisResult.vue") },
+      { path: "crawl", name: "CrawlTasks", component: () => import("@/views/CrawlTasks.vue") },
       { path: "reports", name: "Reports", component: () => import("@/views/Report.vue") },
       { path: "settings", name: "Settings", component: () => import("@/views/Settings.vue") },
       { path: "users", name: "Users", component: () => import("@/views/Users.vue"), meta: { requiresAdmin: true } },

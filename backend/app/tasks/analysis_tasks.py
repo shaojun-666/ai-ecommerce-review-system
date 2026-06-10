@@ -8,6 +8,7 @@ from app.models.comment import Comment, CommentAnalysis
 from app.services.sentiment_service import SentimentService
 from app.utils.text_cleaner import clean_text
 from app.utils.time import utcnow
+from app.utils.cache import cache_delete_pattern, cache_push_list
 
 logger = logging.getLogger(__name__)
 
@@ -86,4 +87,8 @@ def run_analysis(self, task_id: int, comment_ids: list[int],
         "errors": errors[:10],
     }
     db.session.commit()
+
+    # Invalidate dashboard cache so next request gets fresh data
+    cache_delete_pattern("dashboard:*")
+
     return task.result_summary

@@ -24,6 +24,10 @@
           <el-icon><Monitor /></el-icon>
           <span>分析中心</span>
         </el-menu-item>
+        <el-menu-item index="/crawl">
+          <el-icon><Refresh /></el-icon>
+          <span>爬虫管理</span>
+        </el-menu-item>
         <el-menu-item index="/reports">
           <el-icon><Document /></el-icon>
           <span>报告管理</span>
@@ -66,7 +70,7 @@
 import { useRoute, useRouter } from "vue-router"
 import { useUserStore } from "@/store"
 import {
-  DataAnalysis, ChatDotRound, Monitor, Document, Setting, User, ArrowDown,
+  DataAnalysis, ChatDotRound, Monitor, Refresh, Document, Setting, User, ArrowDown,
 } from "@element-plus/icons-vue"
 
 const route = useRoute()
