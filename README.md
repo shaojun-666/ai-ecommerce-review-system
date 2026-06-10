@@ -6,9 +6,9 @@
 
 | Module | Tests | Status |
 |---|---|---|
-| Backend (Flask API) | 67/67 passed | ✅ Complete |
+| Backend (Flask API + Crawler) | 126/126 passed | ✅ Complete |
 | Frontend (Vue 3) | 14/14 passed | ✅ Complete |
-| NLP Module | 51/51 passed | ✅ Complete |
+| NLP Module | 94/104 passed | ✅ Complete (10 ONNX need network) |
 | Docker Deployment | 5/5 containers healthy | ✅ Complete |
 
 ## Tech Stack
@@ -116,14 +116,15 @@ celery -A app.tasks worker -l info
 ```
 ├── backend/              # Flask API 服务
 │   ├── app/
-│   │   ├── api/          # RESTful 路由 (auth, products, comments, analysis, dashboard)
-│   │   ├── models/       # 数据库模型 (User, Product, Comment, CommentAnalysis, AnalysisTask)
+│   │   ├── api/          # RESTful 路由 (auth, products, comments, analysis, dashboard, crawl)
+│   │   ├── crawler/      # 爬虫引擎 (base, anti_bot, adapters/jd)
+│   │   ├── models/       # 数据库模型 (User, Product, Comment, CommentAnalysis, AnalysisTask, CrawlTask)
 │   │   ├── services/     # 业务逻辑层 (auth, comment, analysis, sentiment, report)
 │   │   ├── tasks/        # Celery 异步任务
 │   │   ├── utils/        # 工具函数
 │   │   └── config/       # 配置文件 (Development, Testing, Production)
 │   ├── migrations/       # 数据库迁移
-│   └── tests/            # 测试 (67 tests: 23 unit + 44 integration)
+│   └── tests/            # 测试 (126 tests: 23 unit + 44 integration + 59 crawler)
 ├── frontend/             # Vue 3 前端
 │   └── src/
 │       ├── views/        # 页面 (Dashboard, Analysis, Products, Comments, Login)
@@ -140,7 +141,7 @@ celery -A app.tasks worker -l info
 │   │   ├── training/         # 训练流程 (trainer, evaluator, optimizer)
 │   │   ├── inference/        # 推理服务 (predictor, postprocessor)
 │   │   └── evaluation/       # 评估工具 (metrics, error_analysis)
-│   ├── tests/            # NLP 测试 (40 passed, 3 skipped)
+│   ├── tests/            # NLP 测试 (94 tests: augmenter, training, confusion, model_loading, onnx)
 │   └── notebooks/        # Jupyter notebooks
 ├── scripts/              # 部署脚本
 └── docs/                 # 文档 (项目实现方案, 开发日志)
@@ -159,6 +160,12 @@ celery -A app.tasks worker -l info
 | GET | `/api/v1/analysis/tasks/<id>` | 分析进度 |
 | GET | `/api/v1/analysis/dashboard` | 仪表盘数据 |
 | GET | `/api/v1/analysis/trend` | 趋势数据 |
+| POST | `/api/v1/crawl/tasks` | 创建爬虫任务 |
+| GET | `/api/v1/crawl/tasks` | 爬虫任务列表 |
+| GET | `/api/v1/crawl/tasks/<id>` | 爬虫任务详情 |
+| POST | `/api/v1/crawl/tasks/<id>/start` | 手动启动爬虫 |
+| DELETE | `/api/v1/crawl/tasks/<id>` | 删除爬虫任务 |
+| GET | `/api/v1/crawl/stats` | 爬虫统计 |
 
 ## Test Accounts
 
@@ -169,18 +176,18 @@ celery -A app.tasks worker -l info
 
 ## Testing
 
-### Backend Tests (67 tests)
+### Backend Tests (126 tests)
 ```bash
 cd backend
 pytest tests/ -v
-# 23 unit tests (API, Auth, Models) + 44 integration tests (Auth, Products, Comments, Analysis, Dashboard flows)
+# 23 unit tests (API, Auth, Models) + 44 integration tests (Auth, Products, Comments, Analysis, Dashboard flows) + 59 crawler tests (anti_bot, base, jd_adapter, e2e)
 ```
 
-### NLP Tests (51 tests)
+### NLP Tests (94 tests)
 ```bash
 cd nlp
 pytest tests/ -v
-# Covers cleaner, preprocessor, postprocessor, error analysis, LLM analyzer, metrics, evaluator
+# Covers cleaner, preprocessor, postprocessor, error analysis, LLM analyzer, metrics, evaluator, augmenter, training, confusion, model_loading, onnx
 ```
 
 ### Frontend Tests (14 tests)
@@ -188,6 +195,11 @@ pytest tests/ -v
 cd frontend
 npm run test
 # Component tests for Loading, EmptyState, ErrorState
+```
+
+### Full Test Suite (234 tests)
+```bash
+cd backend && pytest tests/ -v && cd ../nlp && pytest tests/ -v && cd ../frontend && npm run test
 ```
 
 ### Frontend Build
