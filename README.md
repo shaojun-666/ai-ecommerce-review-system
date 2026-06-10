@@ -100,6 +100,42 @@ celery -A app.tasks worker -l info
 # Backend API: http://localhost:8000
 ```
 
+## Demo Experience
+
+Seed the database with demo data and explore the system's features:
+
+```bash
+# After Docker is running (docker compose up -d)
+docker compose exec backend python scripts/seed_data.py
+
+# Or locally (with dependencies running)
+cd backend && python scripts/seed_data.py
+```
+
+### Experience Walkthrough
+
+| Step | Page | What to see |
+|------|------|-------------|
+| 1 | Login (`/login`) | Login with `admin` / `admin123` |
+| 2 | Dashboard (`/`) | 4 stat cards with real data, sentiment pie chart, 30-day trend line, keyword word cloud, latest comments with fake-review markers |
+| 3 | Products (`/products`) | 6 products across JD/淘宝 platforms, searchable and filterable |
+| 4 | Product Detail | Review list with sentiment analysis per comment |
+| 5 | Analysis (`/analysis`) | 3 tasks with different status tags (completed/processing/errors) |
+| 6 | Analysis Result | Detailed per-comment analysis results table with progress bar |
+| 7 | Comments (`/comments`) | 60+ reviews, sortable and filterable |
+| 8 | Crawl (`/crawl`) | Create and manage crawl tasks (try a JD URL: `https://item.jd.com/10000000.html`) |
+| 9 | Dashboard auto-refresh | Wait 30s — data refreshes automatically, timestamp updates |
+
+### Demo Data Summary
+
+| Item | Count |
+|------|-------|
+| Users | 2 (admin + user) |
+| Products | 6 (3 JD + 3 Taobao) |
+| Comments | 61 (including 5 fake reviews highlighted in red) |
+| Analysis Results | 53 across 3 tasks |
+| Unanalyzed Comments | 8 (for "pending" demo) |
+
 ## Environment Variables
 
 参考 `.env.example` 文件配置：
