@@ -90,6 +90,7 @@ import EmptyState from "@/components/common/EmptyState.vue"
 import LatestComments from "@/components/dashboard/LatestComments.vue"
 import * as echarts from "echarts"
 import "echarts-wordcloud"
+import { connectSocket, disconnectSocket } from "@/utils/socket"
 
 const loading = ref(true)
 const refreshing = ref(false)
@@ -256,7 +257,14 @@ const manualRefresh = () => {
 
 onMounted(async () => {
   await fetchData()
-  refreshTimer = window.setInterval(() => fetchData(true), 30000)
+  // WebSocket live updates (fallback to 30s polling)
+  try {
+    const ws = connectSocket()
+    ws.on("dashboard_update", () => { fetchData(true) })
+    refreshTimer = window.setInterval(() => fetchData(true), 60000)
+  } catch {
+    refreshTimer = window.setInterval(() => fetchData(true), 30000)
+  }
 })
 
 onUnmounted(() => {
@@ -264,6 +272,7 @@ onUnmounted(() => {
     clearInterval(refreshTimer)
     refreshTimer = null
   }
+  try { disconnectSocket() } catch { /* ignore */ }
   window.removeEventListener("resize", resizeCharts)
   pieChart?.dispose()
   trendChart?.dispose()

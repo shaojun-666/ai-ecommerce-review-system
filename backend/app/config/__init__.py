@@ -31,6 +31,16 @@ class Config:
     JWT_ACCESS_TOKEN_EXPIRES = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRES", "900"))
     JWT_REFRESH_TOKEN_EXPIRES = int(os.getenv("JWT_REFRESH_TOKEN_EXPIRES", "604800"))
 
+    # Email
+    SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+    SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_USERNAME = os.getenv("SMTP_USERNAME", "")
+    SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+    SMTP_USE_TLS = os.getenv("SMTP_USE_TLS", "true").lower() == "true"
+    MAIL_FROM = os.getenv("MAIL_FROM", "noreply@ecommerce-review.local")
+    MAIL_FROM_NAME = os.getenv("MAIL_FROM_NAME", "AI E-Commerce Review System")
+    REPORT_RECIPIENTS = os.getenv("REPORT_RECIPIENTS", "")
+
     # NLP
     NLP_MODEL_PATH = os.getenv("NLP_MODEL_PATH", "./nlp/models")
     NLP_MODEL_TYPE = os.getenv("NLP_MODEL_TYPE", "bert")

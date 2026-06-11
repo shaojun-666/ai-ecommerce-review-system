@@ -109,6 +109,23 @@ CREATE TABLE IF NOT EXISTS product_prices (
 CREATE INDEX IF NOT EXISTS idx_product_prices_product ON product_prices(product_id);
 CREATE INDEX IF NOT EXISTS idx_product_prices_recorded ON product_prices(recorded_at);
 
+-- Alerts table
+CREATE TABLE IF NOT EXISTS alerts (
+    id SERIAL PRIMARY KEY,
+    product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+    alert_type VARCHAR(32) NOT NULL,
+    severity VARCHAR(16) NOT NULL DEFAULT 'info',
+    title VARCHAR(256) NOT NULL,
+    message TEXT NOT NULL,
+    detail JSONB,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_alerts_product ON alerts(product_id);
+CREATE INDEX IF NOT EXISTS idx_alerts_type ON alerts(alert_type);
+CREATE INDEX IF NOT EXISTS idx_alerts_created ON alerts(created_at);
+CREATE INDEX IF NOT EXISTS idx_alerts_unread ON alerts(is_read) WHERE is_read = FALSE;
+
 -- Default admin user (password: admin123)
 INSERT INTO users (username, email, password_hash, role)
 VALUES ('admin', 'admin@example.com',

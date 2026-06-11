@@ -27,6 +27,7 @@ const routes = [
       { path: "products/compare", name: "ProductCompare", component: () => import("@/views/ProductCompare.vue") },
       { path: "products/selection", name: "ProductSelection", component: () => import("@/views/ProductSelection.vue") },
       { path: "crawl", name: "CrawlTasks", component: () => import("@/views/CrawlTasks.vue") },
+      { path: "alerts", name: "Alerts", component: () => import("@/views/AlertList.vue") },
       { path: "reports", name: "Reports", component: () => import("@/views/Report.vue") },
       { path: "settings", name: "Settings", component: () => import("@/views/Settings.vue") },
       { path: "users", name: "Users", component: () => import("@/views/Users.vue"), meta: { requiresAdmin: true } },

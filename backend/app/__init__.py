@@ -4,7 +4,7 @@ from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
-from app.extensions import db, migrate, init_redis
+from app.extensions import db, migrate, init_redis, socketio
 from app.config import get_config
 
 
@@ -28,6 +28,12 @@ def create_app(config_name: str = "development") -> Flask:
     # Initialize Redis
     init_redis(app)
 
+    # Initialize SocketIO
+    socketio.init_app(app, cors_allowed_origins="*")
+
+    # Register SocketIO event handlers
+    from app import socket_events  # noqa: F401
+
     # Register blueprints
     from app.api.v1 import api_bp
     app.register_blueprint(api_bp, url_prefix="/api/v1")
@@ -35,6 +41,15 @@ def create_app(config_name: str = "development") -> Flask:
     # Register error handlers
     from app.utils.errors import register_error_handlers
     register_error_handlers(app)
+
+    # Security headers middleware
+    @app.after_request
+    def add_security_headers(response):
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+        response.headers.setdefault("X-XSS-Protection", "1; mode=block")
+        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        return response
 
     # Health check
     @app.route("/health")

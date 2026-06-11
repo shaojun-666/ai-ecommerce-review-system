@@ -57,6 +57,10 @@
 
     <el-container>
       <el-header style="background: #fff; border-bottom: 1px solid #e6e6e6; display: flex; align-items: center; justify-content: flex-end; height: 60px; padding: 0 20px">
+        <div style="flex: 1"></div>
+        <el-badge :value="alertUnread" :hidden="alertUnread === 0" style="margin-right: 16px">
+          <el-button size="small" :icon="WarningFilled" circle @click="showAlerts" />
+        </el-badge>
         <el-dropdown trigger="click">
           <span style="cursor: pointer; display: flex; align-items: center; gap: 8px">
             {{ userStore.user?.username || "User" }}
@@ -82,12 +86,51 @@
 import { useRoute, useRouter } from "vue-router"
 import { useUserStore } from "@/store"
 import {
-  DataAnalysis, ChatDotRound, Monitor, Refresh, Document, Setting, User, ArrowDown, Goods, TrendCharts,
+  DataAnalysis, ChatDotRound, Monitor, Refresh, Document, Setting, User, ArrowDown, Goods, TrendCharts, WarningFilled,
 } from "@element-plus/icons-vue"
+import { ref, onMounted, onUnmounted } from "vue"
+import request from "@/utils/request"
+import { connectSocket, disconnectSocket } from "@/utils/socket"
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
+
+const alertUnread = ref(0)
+
+const fetchAlertUnread = async () => {
+  try {
+    const res = await request.get("/alerts/unread-count")
+    alertUnread.value = res.data?.data?.unread ?? 0
+  } catch {
+    alertUnread.value = 0
+  }
+}
+
+const showAlerts = () => {
+  router.push("/alerts")
+}
+
+let pollTimer: number | null = null
+
+onMounted(() => {
+  fetchAlertUnread()
+  try {
+    const ws = connectSocket()
+    ws.on("alert_count", (data: any) => { alertUnread.value = data?.unread ?? 0 })
+    pollTimer = window.setInterval(fetchAlertUnread, 60000)
+  } catch {
+    pollTimer = window.setInterval(fetchAlertUnread, 30000)
+  }
+})
+
+onUnmounted(() => {
+  if (pollTimer !== null) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
+  try { disconnectSocket() } catch { /* ignore */ }
+})
 
 const handleLogout = () => {
   userStore.logout()

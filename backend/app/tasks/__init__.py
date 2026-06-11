@@ -31,7 +31,20 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.crawl_tasks.schedule_due_crawls",
         "schedule": crontab(minute="*/5"),
     },
+    "daily-report-at-9am": {
+        "task": "app.tasks.report_tasks.send_daily_report",
+        "schedule": crontab(hour="9", minute="3"),
+    },
+    "weekly-report-monday-10am": {
+        "task": "app.tasks.report_tasks.send_weekly_report",
+        "schedule": crontab(day_of_week="1", hour="10", minute="7"),
+    },
+    "alert-checks-every-30-min": {
+        "task": "app.tasks.report_tasks.run_alert_checks",
+        "schedule": crontab(minute="*/30"),
+    },
 }
 
 from app.tasks import analysis_tasks  # noqa: E402, F401
 from app.tasks import crawl_tasks  # noqa: E402, F401
+from app.tasks import report_tasks  # noqa: E402, F401
