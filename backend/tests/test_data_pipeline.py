@@ -350,7 +350,7 @@ class TestDataPipelineIntegration:
             task_id = task.id
 
         with app.app_context():
-            with patch("app.tasks.crawl_tasks.JDCrawler") as MockCrawler:
+            with patch("app.tasks.crawl_tasks.get_crawler") as MockCrawler:
                 instance = MockCrawler.return_value
                 from app.crawler.base import CrawlerResult
 
@@ -392,7 +392,7 @@ class TestDataPipelineIntegration:
             db.session.add(task1)
             db.session.commit()
 
-            with patch("app.tasks.crawl_tasks.JDCrawler") as MockCrawler:
+            with patch("app.tasks.crawl_tasks.get_crawler") as MockCrawler:
                 instance = MockCrawler.return_value
                 from app.crawler.base import CrawlerResult
                 instance.crawl_all.return_value = CrawlerResult(
@@ -405,7 +405,7 @@ class TestDataPipelineIntegration:
             assert Comment.query.count() == 1
 
             # Re-crawl with same data
-            with patch("app.tasks.crawl_tasks.JDCrawler") as MockCrawler:
+            with patch("app.tasks.crawl_tasks.get_crawler") as MockCrawler:
                 instance = MockCrawler.return_value
                 from app.crawler.base import CrawlerResult
                 instance.crawl_all.return_value = CrawlerResult(

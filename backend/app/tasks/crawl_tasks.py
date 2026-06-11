@@ -13,7 +13,7 @@ from app.extensions import db
 from app.models.crawl_task import CrawlTask
 from app.models.product import Product
 from app.models.comment import Comment
-from app.crawler.adapters.jd import JDCrawler
+from app.crawler.adapters import get_crawler
 from app.services.data_pipeline import DataPipeline
 from app.utils.cache import cache_delete_pattern
 from app.utils.time import utcnow
@@ -53,11 +53,8 @@ def run_crawl(self, crawl_task_id: int):
     db.session.commit()
 
     try:
-        # Select crawler based on platform
-        if task.platform == "jd":
-            crawler = JDCrawler()
-        else:
-            raise ValueError(f"Unsupported platform: {task.platform}")
+        # Select crawler based on platform via registry
+        crawler = get_crawler(task.platform)
 
         # Execute crawl
         result = crawler.crawl_all(task.url, page_limit=task.page_limit or 5)
@@ -81,14 +78,14 @@ def run_crawl(self, crawl_task_id: int):
         if result.product:
             platform_id = result.product.get("platform_product_id", "")
             product = Product.query.filter_by(
-                platform="jd",
+                platform=task.platform,
                 platform_product_id=platform_id,
             ).first() if platform_id else None
 
             if not product:
                 product = Product(
                     name=result.product.get("name", task.name),
-                    platform="jd",
+                    platform=task.platform,
                     platform_product_id=platform_id or "",
                     user_id=task.user_id,
                 )
@@ -123,7 +120,7 @@ def run_crawl(self, crawl_task_id: int):
                                 content_hash=pr.content_hash,
                                 rating=pr.rating,
                                 author_name=pr.author_name,
-                                platform=pr.platform or "jd",
+                                platform=pr.platform or task.platform,
                                 source=pr.source,
                                 purchase_time=pr.purchase_time,
                             )

@@ -62,9 +62,9 @@ class TestCrawlTaskE2E:
     def test_run_crawl_success(self, app):
         """Full crawl flow: task → crawl → product upsert → comments insert."""
         with app.app_context():
-            with patch("app.tasks.crawl_tasks.JDCrawler") as MockCrawler:
+            with patch("app.tasks.crawl_tasks.get_crawler") as mock_get_crawler:
                 # Configure the mock crawler
-                instance = MockCrawler.return_value
+                instance = mock_get_crawler.return_value
 
                 # Mock crawl_all result
                 from app.crawler.base import CrawlerResult
@@ -107,7 +107,7 @@ class TestCrawlTaskE2E:
         """Verify duplicate comments are not inserted on re-crawl."""
         with app.app_context():
             # First crawl
-            with patch("app.tasks.crawl_tasks.JDCrawler") as MockCrawler:
+            with patch("app.tasks.crawl_tasks.get_crawler") as MockCrawler:
                 instance = MockCrawler.return_value
                 from app.crawler.base import CrawlerResult
                 instance.crawl_all.return_value = CrawlerResult(
@@ -129,7 +129,7 @@ class TestCrawlTaskE2E:
             db.session.add(task2)
             db.session.flush()
 
-            with patch("app.tasks.crawl_tasks.JDCrawler") as MockCrawler:
+            with patch("app.tasks.crawl_tasks.get_crawler") as MockCrawler:
                 instance = MockCrawler.return_value
                 from app.crawler.base import CrawlerResult
                 instance.crawl_all.return_value = CrawlerResult(
@@ -147,7 +147,7 @@ class TestCrawlTaskE2E:
     def test_run_crawl_blocked(self, app):
         """Verify blocked crawl is marked as failed."""
         with app.app_context():
-            with patch("app.tasks.crawl_tasks.JDCrawler") as MockCrawler:
+            with patch("app.tasks.crawl_tasks.get_crawler") as MockCrawler:
                 instance = MockCrawler.return_value
                 from app.crawler.base import CrawlerResult
                 instance.crawl_all.return_value = CrawlerResult(
@@ -163,7 +163,7 @@ class TestCrawlTaskE2E:
     def test_run_crawl_product_not_found(self, app):
         """Verify task fails gracefully when crawl returns no product."""
         with app.app_context():
-            with patch("app.tasks.crawl_tasks.JDCrawler") as MockCrawler:
+            with patch("app.tasks.crawl_tasks.get_crawler") as MockCrawler:
                 instance = MockCrawler.return_value
                 from app.crawler.base import CrawlerResult
                 instance.crawl_all.return_value = CrawlerResult(
