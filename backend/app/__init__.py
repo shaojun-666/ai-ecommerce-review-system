@@ -8,7 +8,11 @@ from app.extensions import db, migrate, init_redis
 from app.config import get_config
 
 
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(
+    key_func=get_remote_address,
+    storage_uri="redis://localhost:6379/0",
+    strategy="fixed-window",
+)
 
 
 def create_app(config_name: str = "development") -> Flask:

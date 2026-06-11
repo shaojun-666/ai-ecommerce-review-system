@@ -33,6 +33,38 @@ def login():
     })
 
 
+@api_bp.route("/auth/register", methods=["POST"])
+def register():
+    data = request.get_json() or {}
+    username = data.get("username")
+    email = data.get("email")
+    password = data.get("password")
+
+    if not all([username, email, password]):
+        return jsonify({"error": "Username, email, and password required"}), 400
+    if len(password) < 6:
+        return jsonify({"error": "Password must be at least 6 characters"}), 400
+
+    from app.models.user import User
+    from werkzeug.security import generate_password_hash
+
+    if User.query.filter_by(username=username).first():
+        return jsonify({"error": "Username already exists"}), 409
+    if User.query.filter_by(email=email).first():
+        return jsonify({"error": "Email already exists"}), 409
+
+    user = User(
+        username=username,
+        email=email,
+        password_hash=generate_password_hash(password),
+    )
+    from app.extensions import db
+    db.session.add(user)
+    db.session.commit()
+
+    return jsonify({"message": "Registration successful"}), 201
+
+
 @api_bp.route("/auth/refresh", methods=["POST"])
 def refresh():
     data = request.get_json() or {}

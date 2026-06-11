@@ -15,6 +15,7 @@ from app.models.product import Product
 from app.models.comment import Comment
 from app.crawler.adapters.jd import JDCrawler
 from app.services.data_pipeline import DataPipeline
+from app.utils.cache import cache_delete_pattern
 from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
@@ -161,6 +162,9 @@ def run_crawl(self, crawl_task_id: int):
             "has_product": result.product is not None,
         }
         db.session.commit()
+
+        # Invalidate dashboard cache so next request gets fresh data
+        cache_delete_pattern("dashboard:*")
 
         logger.info(
             "CrawlTask %s completed: %d found, %d new, %d failed",

@@ -2,7 +2,11 @@
 import sys
 import os
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
+_script_dir = os.path.dirname(os.path.abspath(__file__))
+_backend = os.path.abspath(os.path.join(_script_dir, "..", "backend"))
+# Docker container: /app/scripts/seed_data.py → parent of scripts is /app (the backend root)
+# Host: scripts/seed_data.py → backend/ is sibling of scripts/
+sys.path.insert(0, _backend if os.path.isdir(_backend) else os.path.dirname(_script_dir))
 
 from app import create_app
 from app.extensions import db
@@ -25,12 +29,17 @@ def seed():
             print("Database already seeded, skipping.")
             return
 
-        # ── Users ──
-        admin = User(username="admin", email="admin@example.com", role="admin", is_active=True)
-        admin.set_password("admin123")
-        user1 = User(username="user", email="user@example.com", role="user", is_active=True)
-        user1.set_password("user123")
-        db.session.add_all([admin, user1])
+        # ── Users (use existing if init_db.sql already created them) ──
+        admin = User.query.filter_by(username="admin").first()
+        if not admin:
+            admin = User(username="admin", email="admin@example.com", role="admin", is_active=True)
+            admin.set_password("admin123")
+            db.session.add(admin)
+        user1 = User.query.filter_by(username="user").first()
+        if not user1:
+            user1 = User(username="user", email="user@example.com", role="user", is_active=True)
+            user1.set_password("user123")
+            db.session.add(user1)
         db.session.flush()
 
         # ── Products ──

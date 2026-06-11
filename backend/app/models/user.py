@@ -5,7 +5,7 @@ from app.extensions import db
 
 def utcnow():
     """Column-default-friendly wrapper for timezone-aware UTC now."""
-    return datetime.datetime.now(datetime.UTC)
+    return datetime.datetime.now(datetime.timezone.utc)
 
 
 class User(db.Model):

@@ -9,7 +9,7 @@ from app.extensions import db
 
 
 def utcnow():
-    return datetime.datetime.now(datetime.UTC)
+    return datetime.datetime.now(datetime.timezone.utc)
 
 
 class CrawlTask(db.Model):

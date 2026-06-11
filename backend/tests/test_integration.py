@@ -130,9 +130,9 @@ class TestProductFlow:
         assert resp.status_code == 404
 
     def test_delete_product_requires_admin(self, client, auth_headers, sample_product):
-        """Non-admin users cannot delete products."""
+        """Non-admin users can delete their own products."""
         resp = client.delete(f"/api/v1/products/{sample_product.id}", headers=auth_headers)
-        assert resp.status_code == 403
+        assert resp.status_code == 200
 
     def test_delete_product_as_admin(self, client, admin_headers, sample_product):
         resp = client.delete(f"/api/v1/products/{sample_product.id}", headers=admin_headers)
@@ -294,9 +294,13 @@ class TestDashboardFlow:
 class TestAuthorizationBoundaries:
     """Permission and access control edge cases."""
 
-    def test_regular_user_cannot_access_admin_endpoints(self, client, auth_headers):
-        """Products DELETE requires admin."""
-        resp = client.delete("/api/v1/products/1", headers=auth_headers)
+    def test_regular_user_cannot_access_admin_endpoints(self, client, auth_headers, db, normal_user):
+        """Non-admin users cannot delete another user's product."""
+        from app.models.product import Product
+        other = Product(name="他人商品", platform="jd", user_id=9999)
+        db.session.add(other)
+        db.session.commit()
+        resp = client.delete(f"/api/v1/products/{other.id}", headers=auth_headers)
         assert resp.status_code == 403
 
     def test_access_token_type_check(self, client, normal_user):

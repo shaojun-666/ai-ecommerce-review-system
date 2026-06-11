@@ -9,4 +9,4 @@ def utcnow() -> datetime.datetime:
     For SQLAlchemy column defaults, pass the function reference ``utcnow``
     (without calling it) so SQLAlchemy invokes it at row-creation time.
     """
-    return datetime.datetime.now(datetime.UTC)
+    return datetime.datetime.now(datetime.timezone.utc)

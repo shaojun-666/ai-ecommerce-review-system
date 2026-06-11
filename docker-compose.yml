@@ -45,6 +45,7 @@ services:
     container_name: ecommerce-backend
     volumes:
       - ./backend:/app
+      - ./scripts:/app/scripts
       - model-data:/app/nlp/models
     environment:
       - DATABASE_URL=postgresql://ecommerce:ecommerce_password@postgres:5432/ecommerce_reviews

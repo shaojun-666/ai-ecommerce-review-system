@@ -4,7 +4,7 @@ from app.extensions import db
 
 def utcnow():
     """Column-default-friendly wrapper for timezone-aware UTC now."""
-    return datetime.datetime.now(datetime.UTC)
+    return datetime.datetime.now(datetime.timezone.utc)
 
 
 class Product(db.Model):
@@ -20,6 +20,9 @@ class Product(db.Model):
     created_at = db.Column(db.DateTime, default=utcnow)
     updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
+    tags = db.relationship("ProductTag", secondary="product_tag_map", lazy="selectin",
+                           backref=db.backref("tagged_products", lazy="selectin"))
+
     def to_dict(self):
         return {
             "id": self.id,
@@ -29,6 +32,7 @@ class Product(db.Model):
             "url": self.url,
             "image_url": self.image_url,
             "user_id": self.user_id,
+            "tags": [t.to_dict() for t in self.tags] if self.tags else [],
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

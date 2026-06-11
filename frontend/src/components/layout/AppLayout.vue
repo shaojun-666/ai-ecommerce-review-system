@@ -20,6 +20,14 @@
           <el-icon><ChatDotRound /></el-icon>
           <span>评论管理</span>
         </el-menu-item>
+        <el-menu-item index="/products">
+          <el-icon><Goods /></el-icon>
+          <span>商品管理</span>
+        </el-menu-item>
+        <el-menu-item index="/products/compare">
+          <el-icon><TrendCharts /></el-icon>
+          <span>商品对比</span>
+        </el-menu-item>
         <el-menu-item index="/analysis">
           <el-icon><Monitor /></el-icon>
           <span>分析中心</span>
@@ -70,7 +78,7 @@
 import { useRoute, useRouter } from "vue-router"
 import { useUserStore } from "@/store"
 import {
-  DataAnalysis, ChatDotRound, Monitor, Refresh, Document, Setting, User, ArrowDown,
+  DataAnalysis, ChatDotRound, Monitor, Refresh, Document, Setting, User, ArrowDown, Goods, TrendCharts,
 } from "@element-plus/icons-vue"
 
 const route = useRoute()

@@ -33,6 +33,12 @@ export const analysisApi = {
     request.get(`/tasks/${id}/results`, { params }),
 }
 
+export const productsApi = {
+  list: (params?: Record<string, any>) =>
+    request.get("/products", { params }),
+  get: (id: number) => request.get(`/products/${id}`),
+}
+
 export const usersApi = {
   list: () => request.get("/users"),
   create: (data: { username: string; email: string; password: string; role?: string }) =>

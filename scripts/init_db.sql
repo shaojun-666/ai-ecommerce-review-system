@@ -22,12 +22,14 @@ CREATE TABLE IF NOT EXISTS products (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     platform VARCHAR(50) DEFAULT '',
+    platform_product_id VARCHAR(128) DEFAULT '',
     url VARCHAR(1024) DEFAULT '',
     image_url VARCHAR(1024) DEFAULT '',
     user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+CREATE INDEX IF NOT EXISTS idx_products_platform_product_id ON products(platform_product_id);
 CREATE INDEX IF NOT EXISTS idx_products_user ON products(user_id);
 CREATE INDEX IF NOT EXISTS idx_products_platform ON products(platform);
 
@@ -37,10 +39,12 @@ CREATE TABLE IF NOT EXISTS comments (
     product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
     user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
     content TEXT NOT NULL,
+    content_hash VARCHAR(64) DEFAULT '',
     rating SMALLINT CHECK (rating >= 1 AND rating <= 5),
     author_name VARCHAR(100) DEFAULT '',
     platform VARCHAR(50) DEFAULT '',
     source VARCHAR(50) DEFAULT 'import',
+    purchase_time TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -48,13 +52,15 @@ CREATE INDEX IF NOT EXISTS idx_comments_product ON comments(product_id);
 CREATE INDEX IF NOT EXISTS idx_comments_created ON comments(created_at);
 CREATE INDEX IF NOT EXISTS idx_comments_product_created ON comments(product_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_comments_rating ON comments(rating);
+CREATE INDEX IF NOT EXISTS idx_comments_content_hash ON comments(content_hash);
+CREATE INDEX IF NOT EXISTS idx_comments_hash_product ON comments(content_hash, product_id);
 
 -- Analysis tasks table
 CREATE TABLE IF NOT EXISTS analysis_tasks (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
     name VARCHAR(256) NOT NULL,
-    status VARCHAR(20) NOT NULL DEFAULT 'pending'
+    status VARCHAR(32) NOT NULL DEFAULT 'pending'
         CHECK (status IN ('pending', 'processing', 'completed', 'failed', 'completed_with_errors')),
     total_count INTEGER DEFAULT 0,
     processed_count INTEGER DEFAULT 0,
