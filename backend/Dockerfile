@@ -15,12 +15,16 @@ RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple && 
 
 COPY . .
 
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 EXPOSE 8000
 
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["gunicorn", "wsgi:app", \
      "--bind", "0.0.0.0:8000", \
      "--workers", "4", \
-     "--worker-class", "gevent", \
+     "--worker-class", "geventwebsocket.gunicorn.workers.GeventWebSocketWorker", \
      "--timeout", "120", \
      "--access-logfile", "-", \
      "--error-logfile", "-"]

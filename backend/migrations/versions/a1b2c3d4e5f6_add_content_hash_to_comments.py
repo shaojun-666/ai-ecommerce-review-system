@@ -15,9 +15,10 @@ depends_on = None
 
 
 def upgrade():
-    op.add_column("comments", sa.Column("content_hash", sa.String(64), nullable=True))
-    op.create_index(
-        "idx_comments_hash_product", "comments", ["content_hash", "product_id"],
+    op.execute("ALTER TABLE comments ADD COLUMN IF NOT EXISTS content_hash VARCHAR(64)")
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS idx_comments_hash_product "
+        "ON comments(content_hash, product_id)"
     )
 
 

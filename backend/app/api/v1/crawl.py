@@ -16,7 +16,6 @@ from app.api.v1 import api_bp
 from app.extensions import db
 from app.models.crawl_task import CrawlTask
 from app.models.product import Product
-from app.tasks.crawl_tasks import run_crawl
 from app.utils.auth import require_auth as jwt_required
 from app.utils.pagination import paginate_query
 from app.utils.response import success, fail
@@ -160,6 +159,7 @@ def start_crawl_task(current_user, task_id: int):
     if not task.can_start():
         return fail(f"Task cannot be started (status={task.status})")
 
+    from app.tasks.crawl_tasks import run_crawl  # lazy import to avoid circular dependency
     run_crawl.delay(task.id)
     task.status = "pending"
     db.session.commit()

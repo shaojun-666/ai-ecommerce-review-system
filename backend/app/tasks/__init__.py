@@ -1,8 +1,13 @@
 """Celery app initialization."""
+import logging
+import sys
+
 from celery import Celery
+from celery.schedules import crontab
+from celery.signals import worker_process_init, beat_init
 from app.config import get_config
 
-from celery.schedules import crontab
+logger = logging.getLogger(__name__)
 
 config = get_config()
 
@@ -17,6 +22,28 @@ celery_app = Celery(
     result_serializer=config.CELERY_RESULT_SERIALIZER,
     accept_content=config.CELERY_ACCEPT_CONTENT,
 )
+
+_flask_app = None
+
+
+def _ensure_flask_app():
+    """Lazily create and push a Flask app context for Celery task use."""
+    global _flask_app
+    if _flask_app is None:
+        from app import create_app
+        _flask_app = create_app()
+        _flask_app.app_context().push()
+        logger.info("Flask app context pushed for Celery worker")
+
+
+@worker_process_init.connect
+def _init_worker_flask_app(**kwargs):
+    _ensure_flask_app()
+
+
+@beat_init.connect
+def _init_beat_flask_app(**kwargs):
+    _ensure_flask_app()
 
 celery_app.conf.beat_schedule = {
     "snapshot-prices-every-6-hours": {

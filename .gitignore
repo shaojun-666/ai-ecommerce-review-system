@@ -9,6 +9,7 @@ build/
 venv/
 env/
 *.so
+celerybeat-schedule
 
 # Node
 node_modules/

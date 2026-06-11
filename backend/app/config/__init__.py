@@ -23,6 +23,8 @@ class Config:
     CELERY_RESULT_SERIALIZER = "json"
     CELERY_ACCEPT_CONTENT = ["json"]
     CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173")
+    RATELIMIT_STORAGE_URI = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    RATELIMIT_ENABLED = os.getenv("RATELIMIT_ENABLED", "true").lower() == "true"
     MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50MB upload limit
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
