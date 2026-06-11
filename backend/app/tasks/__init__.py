@@ -2,6 +2,8 @@
 from celery import Celery
 from app.config import get_config
 
+from celery.schedules import crontab
+
 config = get_config()
 
 celery_app = Celery(
@@ -15,6 +17,21 @@ celery_app = Celery(
     result_serializer=config.CELERY_RESULT_SERIALIZER,
     accept_content=config.CELERY_ACCEPT_CONTENT,
 )
+
+celery_app.conf.beat_schedule = {
+    "snapshot-prices-every-6-hours": {
+        "task": "app.tasks.crawl_tasks.snapshot_prices",
+        "schedule": crontab(hour="*/6", minute="13"),
+    },
+    "check-crawl-timeouts": {
+        "task": "app.tasks.crawl_tasks.check_crawl_timeouts",
+        "schedule": crontab(minute="*/15"),
+    },
+    "schedule-due-crawls": {
+        "task": "app.tasks.crawl_tasks.schedule_due_crawls",
+        "schedule": crontab(minute="*/5"),
+    },
+}
 
 from app.tasks import analysis_tasks  # noqa: E402, F401
 from app.tasks import crawl_tasks  # noqa: E402, F401

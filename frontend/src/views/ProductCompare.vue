@@ -41,6 +41,18 @@
 
         <!-- Metrics grid -->
         <el-descriptions :column="1" border size="small">
+          <el-descriptions-item label="当前价格">
+            <span v-if="p.monitoring?.latest_price" style="font-size: 18px; font-weight: bold; color: #f56c6c">
+              ¥{{ p.monitoring.latest_price }}
+            </span>
+            <span v-else style="color: #999">-</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="评论增长(14d)">
+            <span v-if="p.monitoring?.comment_growth_14d != null" :style="growthStyle(p.monitoring.comment_growth_14d)">
+              {{ p.monitoring.comment_growth_14d > 0 ? '+' : '' }}{{ p.monitoring.comment_growth_14d }}%
+            </span>
+            <span v-else style="color: #999">-</span>
+          </el-descriptions-item>
           <el-descriptions-item label="评论总数">
             <span style="font-size: 18px; font-weight: bold; color: #409eff">
               {{ p.monitoring?.comment_count || 0 }}
@@ -173,6 +185,13 @@ const loadSentimentStats = async (productId: number) => {
   } catch {
     return null
   }
+}
+
+const growthStyle = (rate: number) => {
+  if (rate > 10) return { color: '#f56c6c', fontWeight: 'bold' as const }
+  if (rate > 0) return { color: '#e6a23c', fontWeight: 'bold' as const }
+  if (rate < -10) return { color: '#67c23a', fontWeight: 'bold' as const }
+  return { color: '#909399' }
 }
 
 const taskStatusMap: Record<string, string> = {

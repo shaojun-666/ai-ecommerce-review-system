@@ -38,9 +38,25 @@
             <span v-if="!row.tags?.length" style="color: #999">-</span>
           </template>
         </el-table-column>
+        <el-table-column label="当前价格" width="100">
+          <template #default="{ row }">
+            <span v-if="row.monitoring?.latest_price" style="font-weight: bold; color: #f56c6c">
+              ¥{{ row.monitoring.latest_price }}
+            </span>
+            <span v-else style="color: #999">-</span>
+          </template>
+        </el-table-column>
         <el-table-column label="评论数" width="80">
           <template #default="{ row }">
             {{ row.monitoring?.comment_count || 0 }}
+          </template>
+        </el-table-column>
+        <el-table-column label="评论增长" width="90">
+          <template #default="{ row }">
+            <span v-if="row.monitoring?.comment_growth_14d != null" :style="growthStyle(row.monitoring.comment_growth_14d)">
+              {{ row.monitoring.comment_growth_14d > 0 ? '+' : '' }}{{ row.monitoring.comment_growth_14d }}%
+            </span>
+            <span v-else style="color: #999">-</span>
           </template>
         </el-table-column>
         <el-table-column label="监控状态" width="160">
@@ -64,10 +80,11 @@
             <span v-else style="color: #999">无数据</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="220" fixed="right">
+        <el-table-column label="操作" width="300" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="editProduct(row)">编辑</el-button>
             <el-button size="small" @click="manageTags(row)">标签</el-button>
+            <el-button size="small" @click="showPriceChart(row)" v-if="row.monitoring?.latest_price">价格</el-button>
             <el-button size="small" type="danger" plain @click="deleteProduct(row)">删除</el-button>
           </template>
         </el-table-column>
@@ -169,11 +186,23 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- Price trend chart dialog -->
+    <el-dialog v-model="showPriceDialog" :title="`价格趋势 - ${priceChartProduct?.name || ''}`" width="700px">
+      <div v-if="priceChartLoading" style="text-align: center; padding: 40px; color: #999">加载中...</div>
+      <div v-else-if="priceChartError" style="text-align: center; padding: 40px; color: #f56c6c">{{ priceChartError }}</div>
+      <div v-else>
+        <div ref="priceChartRef" style="width: 100%; height: 350px"></div>
+        <div v-if="priceChartData?.length" style="margin-top: 12px; font-size: 13px; color: #999; text-align: center">
+          共 {{ priceChartData.length }} 条价格记录
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from "vue"
+import { ref, onMounted, computed, nextTick, watch } from "vue"
 import { ElMessage, ElMessageBox } from "element-plus"
 import { productsApi } from "@/api"
 import request from "@/utils/request"
@@ -211,6 +240,109 @@ const newTagColor = ref("#409eff")
 const showBatchDialog = ref(false)
 const batchText = ref("")
 const batchLoading = ref(false)
+
+// Price chart
+const showPriceDialog = ref(false)
+const priceChartProduct = ref<any>(null)
+const priceChartRef = ref<HTMLElement | null>(null)
+const priceChartData = ref<any[]>([])
+const priceChartLoading = ref(false)
+const priceChartError = ref("")
+let priceChartInstance: any = null
+
+const growthStyle = (rate: number) => {
+  if (rate > 10) return { color: '#f56c6c', fontWeight: 'bold' as const }
+  if (rate > 0) return { color: '#e6a23c', fontWeight: 'bold' as const }
+  if (rate < -10) return { color: '#67c23a', fontWeight: 'bold' as const }
+  return { color: '#909399' }
+}
+
+const showPriceChart = async (product: any) => {
+  priceChartProduct.value = product
+  showPriceDialog.value = true
+  priceChartLoading.value = true
+  priceChartError.value = ""
+  priceChartData.value = []
+
+  try {
+    const res = await productsApi.prices(product.id, { days: 90 })
+    const data = res.data?.data
+    const prices = data?.prices || []
+    priceChartData.value = prices
+
+    if (!prices.length) {
+      priceChartError.value = "暂无价格数据"
+      return
+    }
+
+    // Render ECharts after DOM update
+    await nextTick()
+    renderPriceChart(prices, data?.current_price)
+  } catch {
+    priceChartError.value = "加载价格数据失败"
+  } finally {
+    priceChartLoading.value = false
+  }
+}
+
+const renderPriceChart = (prices: any[], currentPrice: number | null) => {
+  if (!priceChartRef.value) return
+
+  // Lazy-load echarts
+  import("echarts").then((echarts) => {
+    if (priceChartInstance) priceChartInstance.dispose()
+    priceChartInstance = echarts.init(priceChartRef.value!)
+
+    const dates = prices.map((p: any) => {
+      const d = new Date(p.recorded_at)
+      return `${d.getMonth() + 1}/${d.getDate()}`
+    })
+    const vals = prices.map((p: any) => p.price)
+
+    priceChartInstance.setOption({
+      tooltip: {
+        trigger: 'axis',
+        formatter: (params: any) => {
+          const p = params[0]
+          return `${p.axisValue}<br/>¥${p.value.toFixed(2)}`
+        }
+      },
+      xAxis: { type: 'category', data: dates, axisLabel: { rotate: 45, fontSize: 11 } },
+      yAxis: {
+        type: 'value',
+        axisLabel: { formatter: '¥{value}' },
+        min: (val: any) => Math.max(0, Math.floor(val.min * 0.95)),
+      },
+      grid: { left: 60, right: 20, bottom: 60, top: 20 },
+      series: [{
+        type: 'line',
+        data: vals,
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 6,
+        lineStyle: { color: '#f56c6c', width: 2 },
+        areaStyle: { color: 'rgba(245, 108, 108, 0.1)' },
+        itemStyle: { color: '#f56c6c' },
+        markLine: currentPrice ? {
+          data: [{ yAxis: currentPrice }],
+          silent: true,
+          lineStyle: { color: '#909399', type: 'dashed' },
+          label: { formatter: `当前 ¥${currentPrice}`, fontSize: 11 },
+        } : undefined,
+      }],
+    })
+  })
+}
+
+// Cleanup chart on dialog close
+watch(showPriceDialog, (v) => {
+  if (!v && priceChartInstance) {
+    setTimeout(() => {
+      priceChartInstance?.dispose()
+      priceChartInstance = null
+    }, 300)
+  }
+})
 
 const batchPreview = computed(() => {
   return batchText.value.trim().split("\n").filter((l: string) => l.trim()).length

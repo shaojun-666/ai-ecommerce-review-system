@@ -23,8 +23,8 @@ class Product(db.Model):
     tags = db.relationship("ProductTag", secondary="product_tag_map", lazy="selectin",
                            backref=db.backref("tagged_products", lazy="selectin"))
 
-    def to_dict(self):
-        return {
+    def to_dict(self, include_prices=False):
+        d = {
             "id": self.id,
             "name": self.name,
             "platform": self.platform,
@@ -36,3 +36,11 @@ class Product(db.Model):
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
+        if include_prices:
+            prices = self.prices.limit(50).all()
+            d["prices"] = [p.to_dict() for p in prices]
+        # Attach latest price
+        latest = self.prices.first()
+        d["latest_price"] = latest.price if latest else None
+        d["latest_price_at"] = latest.recorded_at.isoformat() if latest else None
+        return d

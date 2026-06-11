@@ -13,6 +13,7 @@ from app.extensions import db
 from app.models.crawl_task import CrawlTask
 from app.models.product import Product
 from app.models.comment import Comment
+from app.models.product_price import ProductPrice
 from app.crawler.adapters import get_crawler
 from app.services.data_pipeline import DataPipeline
 from app.utils.cache import cache_delete_pattern
@@ -94,6 +95,21 @@ def run_crawl(self, crawl_task_id: int):
 
             # Update task product link
             task.product_id = product.id
+
+            # Record price snapshot
+            price = result.product.get("price")
+            if price is not None:
+                try:
+                    db.session.add(ProductPrice(
+                        product_id=product.id,
+                        price=float(price),
+                        platform=task.platform,
+                        source="crawl",
+                    ))
+                    db.session.commit()
+                except Exception as e:
+                    db.session.rollback()
+                    logger.warning("Failed to record price snapshot: %s", e)
 
         # Insert comments via DataPipeline
         new_count = 0
@@ -232,3 +248,41 @@ def schedule_due_crawls():
 
     logger.info("Launched %d scheduled crawl tasks", launched)
     return {"launched": launched}
+
+
+@celery_app.task
+def snapshot_prices():
+    """Record current prices for all products that have a crawl task configured.
+
+    This is triggered by Celery Beat (e.g., every 6 hours) to build
+    price history even when no new crawl is actively running.
+    """
+    from app.crawler.adapters import get_crawler as get_crawler_factory
+
+    products = Product.query.filter(Product.url != "", Product.platform != "").all()
+    recorded = 0
+    failed = 0
+
+    for product in products:
+        try:
+            crawler = get_crawler_factory(product.platform)
+            result = crawler.crawl_product(product.url)
+            if result.product and result.product.get("price") is not None:
+                db.session.add(ProductPrice(
+                    product_id=product.id,
+                    price=float(result.product["price"]),
+                    platform=product.platform,
+                    source="crawl",
+                ))
+                recorded += 1
+            else:
+                logger.debug("No price found for product %s", product.id)
+        except Exception as e:
+            failed += 1
+            logger.warning("Price snapshot failed for product %s: %s", product.id, e)
+
+    if recorded or failed:
+        db.session.commit()
+        logger.info("Price snapshot: %d recorded, %d failed", recorded, failed)
+
+    return {"recorded": recorded, "failed": failed}

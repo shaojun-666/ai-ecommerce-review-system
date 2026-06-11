@@ -1,10 +1,14 @@
+from datetime import timedelta
 from flask import request
 from app.extensions import db
 from app.models.product import Product
+from app.models.product_price import ProductPrice
 from app.models.crawl_task import CrawlTask
+from app.models.comment import Comment
 from app.utils.auth import require_auth
 from app.utils.response import success, fail
 from app.utils.pagination import paginate_query
+from app.utils.time import utcnow
 from app.api.v1 import api_bp
 
 
@@ -120,6 +124,127 @@ def delete_product(current_user, product_id):
     return success(message="Product deleted")
 
 
+@api_bp.route("/products/<int:product_id>/prices", methods=["GET"])
+@require_auth
+def get_product_prices(current_user, product_id):
+    """Return price history for a product."""
+    product = db.session.get(Product, product_id)
+    if not product:
+        return fail("Product not found", 404)
+
+    days = request.args.get("days", 90, type=int)
+    since = utcnow() - timedelta(days=days)
+
+    prices = ProductPrice.query.filter(
+        ProductPrice.product_id == product_id,
+        ProductPrice.recorded_at >= since,
+    ).order_by(ProductPrice.recorded_at.asc()).all()
+
+    latest_price_record = product.prices.first()
+
+    return success({
+        "product_id": product_id,
+        "product_name": product.name,
+        "current_price": latest_price_record.price if latest_price_record else None,
+        "prices": [p.to_dict() for p in prices],
+    })
+
+
+@api_bp.route("/products/price-alerts", methods=["GET"])
+@require_auth
+def get_price_alerts(current_user):
+    """Find products with significant price changes in the last 30 days."""
+    q = Product.query
+    if current_user.role != "admin":
+        q = q.filter(db.or_(Product.user_id == current_user.id, Product.user_id.is_(None)))
+
+    products = q.all()
+    alerts = []
+
+    for p in products:
+        latest = p.prices.first()
+        if not latest:
+            continue
+
+        # Get price 30 days ago or earliest available
+        cutoff = utcnow() - timedelta(days=30)
+        older = ProductPrice.query.filter(
+            ProductPrice.product_id == p.id,
+            ProductPrice.recorded_at < cutoff,
+        ).order_by(ProductPrice.recorded_at.desc()).first()
+
+        if not older:
+            continue
+
+        change_pct = round((latest.price - older.price) / older.price * 100, 1)
+        if abs(change_pct) >= 5:
+            alerts.append({
+                "product_id": p.id,
+                "product_name": p.name,
+                "platform": p.platform,
+                "old_price": older.price,
+                "current_price": latest.price,
+                "change_pct": change_pct,
+                "direction": "up" if change_pct > 0 else "down",
+                "old_date": older.recorded_at.isoformat() if older.recorded_at else None,
+                "new_date": latest.recorded_at.isoformat() if latest.recorded_at else None,
+            })
+
+    alerts.sort(key=lambda a: abs(a["change_pct"]), reverse=True)
+    return success(alerts)
+
+
+@api_bp.route("/products/<int:product_id>/growth", methods=["GET"])
+@require_auth
+def get_product_growth(current_user, product_id):
+    """Return comment growth rate as a sales proxy indicator."""
+    product = db.session.get(Product, product_id)
+    if not product:
+        return fail("Product not found", 404)
+
+    days = request.args.get("days", 14, type=int)
+    now = utcnow()
+    period_start = now - timedelta(days=days)
+    prev_period_start = now - timedelta(days=days * 2)
+
+    # Current period comment count
+    current_count = Comment.query.filter(
+        Comment.product_id == product_id,
+        Comment.created_at >= period_start,
+    ).count()
+
+    # Previous period comment count
+    prev_count = Comment.query.filter(
+        Comment.product_id == product_id,
+        Comment.created_at >= prev_period_start,
+        Comment.created_at < period_start,
+    ).count()
+
+    growth_rate = None
+    if prev_count > 0:
+        growth_rate = round((current_count - prev_count) / prev_count * 100, 1)
+
+    # Daily breakdown
+    daily = db.session.query(
+        db.func.date(Comment.created_at).label("date"),
+        db.func.count(Comment.id).label("count"),
+    ).filter(
+        Comment.product_id == product_id,
+        Comment.created_at >= prev_period_start,
+    ).group_by(db.func.date(Comment.created_at)).order_by(db.func.date(Comment.created_at)).all()
+
+    return success({
+        "product_id": product_id,
+        "product_name": product.name,
+        "days": days,
+        "current_period_count": current_count,
+        "previous_period_count": prev_count,
+        "growth_rate": growth_rate,
+        "trend": "up" if growth_rate and growth_rate > 10 else ("down" if growth_rate and growth_rate < -10 else "stable"),
+        "daily": [{"date": str(r.date), "count": r.count} for r in daily],
+    })
+
+
 @api_bp.route("/products/<int:product_id>/monitoring", methods=["GET"])
 @require_auth
 def get_product_monitoring(current_user, product_id):
@@ -136,7 +261,6 @@ def _monitoring_info(product):
 
     comment_count = 0
     last_comment_date = None
-    from app.models.comment import Comment
     stats = db.session.query(
         db.func.count(Comment.id),
         db.func.max(Comment.created_at),
@@ -145,9 +269,36 @@ def _monitoring_info(product):
         comment_count = stats[0] or 0
         last_comment_date = stats[1].isoformat() if stats[1] else None
 
+    # Comment growth rate (last 14 days vs previous 14 days)
+    now = utcnow()
+    current_period = Comment.query.filter(
+        Comment.product_id == product.id,
+        Comment.created_at >= now - timedelta(days=14),
+    ).count()
+    prev_period = Comment.query.filter(
+        Comment.product_id == product.id,
+        Comment.created_at >= now - timedelta(days=28),
+        Comment.created_at < now - timedelta(days=14),
+    ).count()
+    growth_rate = None
+    if prev_period > 0:
+        growth_rate = round((current_period - prev_period) / prev_period * 100, 1)
+
+    # Latest price from ProductPrice
+    latest_price = None
+    latest_price_at = None
+    latest_price_record = product.prices.first()
+    if latest_price_record:
+        latest_price = latest_price_record.price
+        latest_price_at = latest_price_record.recorded_at.isoformat() if latest_price_record.recorded_at else None
+
     return {
         "comment_count": comment_count,
         "last_comment_date": last_comment_date,
+        "comment_growth_14d": growth_rate,
+        "comment_growth_trend": "up" if growth_rate and growth_rate > 10 else ("down" if growth_rate and growth_rate < -10 else "stable"),
+        "latest_price": latest_price,
+        "latest_price_at": latest_price_at,
         "crawl_task": crawl_task.to_dict() if crawl_task else None,
         "recent_tasks": [t.to_dict() for t in recent_tasks] if recent_tasks else [],
     }

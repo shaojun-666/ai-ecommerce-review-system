@@ -97,6 +97,18 @@ CREATE INDEX IF NOT EXISTS idx_analyses_sentiment ON comment_analyses(sentiment)
 CREATE INDEX IF NOT EXISTS idx_analyses_fake ON comment_analyses(fake_score);
 CREATE INDEX IF NOT EXISTS idx_analyses_comment ON comment_analyses(comment_id);
 
+-- Product price history table
+CREATE TABLE IF NOT EXISTS product_prices (
+    id SERIAL PRIMARY KEY,
+    product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    price DOUBLE PRECISION NOT NULL,
+    platform VARCHAR(50) DEFAULT '',
+    recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    source VARCHAR(20) DEFAULT 'crawl'
+);
+CREATE INDEX IF NOT EXISTS idx_product_prices_product ON product_prices(product_id);
+CREATE INDEX IF NOT EXISTS idx_product_prices_recorded ON product_prices(recorded_at);
+
 -- Default admin user (password: admin123)
 INSERT INTO users (username, email, password_hash, role)
 VALUES ('admin', 'admin@example.com',
