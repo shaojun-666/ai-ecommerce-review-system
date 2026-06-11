@@ -9,6 +9,8 @@ from app.utils.auth import require_auth
 from app.utils.response import success, fail
 from app.utils.pagination import paginate_query
 from app.utils.time import utcnow
+from app.services.scoring_service import score_product, score_all_products, detect_uptrend, get_category_heat
+from app.services.recommendation_service import generate_recommendations
 from app.api.v1 import api_bp
 
 
@@ -252,6 +254,49 @@ def get_product_monitoring(current_user, product_id):
     if not product:
         return fail("Product not found", 404)
     return success(_monitoring_info(product))
+
+
+@api_bp.route("/products/scoring", methods=["GET"])
+@require_auth
+def product_scoring(current_user):
+    uptrend_only = request.args.get("uptrend_only", "").lower() in ("1", "true", "yes")
+    results = score_all_products(uptrend_only=uptrend_only)
+    return success(results)
+
+
+@api_bp.route("/products/<int:product_id>/score", methods=["GET"])
+@require_auth
+def product_score_detail(current_user, product_id):
+    product = db.session.get(Product, product_id)
+    if not product:
+        return fail("Product not found", 404)
+    s = score_product(product)
+    u = detect_uptrend(product, s)
+    return success({"score": s, "uptrend": u})
+
+
+@api_bp.route("/products/uptrend", methods=["GET"])
+@require_auth
+def product_uptrend(current_user):
+    results = score_all_products(uptrend_only=True)
+    return success(results)
+
+
+@api_bp.route("/dashboard/category-heat", methods=["GET"])
+@require_auth
+def category_heat(current_user):
+    tag_id = request.args.get("tag_id", type=int)
+    days = request.args.get("days", 30, type=int)
+    days = min(max(days, 1), 365)
+    data = get_category_heat(tag_id=tag_id, days=days)
+    return success(data)
+
+
+@api_bp.route("/products/recommendations", methods=["GET"])
+@require_auth
+def product_recommendations(current_user):
+    data = generate_recommendations()
+    return success(data)
 
 
 def _monitoring_info(product):

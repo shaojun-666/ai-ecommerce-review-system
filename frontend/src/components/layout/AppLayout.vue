@@ -28,6 +28,10 @@
           <el-icon><TrendCharts /></el-icon>
           <span>商品对比</span>
         </el-menu-item>
+        <el-menu-item index="/products/selection">
+          <el-icon><DataAnalysis /></el-icon>
+          <span>选品中心</span>
+        </el-menu-item>
         <el-menu-item index="/analysis">
           <el-icon><Monitor /></el-icon>
           <span>分析中心</span>

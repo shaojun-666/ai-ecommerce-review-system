@@ -42,6 +42,13 @@ export const productsApi = {
   growth: (id: number, params?: Record<string, any>) =>
     request.get(`/products/${id}/growth`, { params }),
   priceAlerts: () => request.get("/products/price-alerts"),
+  scoring: (params?: Record<string, any>) =>
+    request.get("/products/scoring", { params }),
+  uptrend: (params?: Record<string, any>) =>
+    request.get("/products/uptrend", { params }),
+  recommendations: () => request.get("/products/recommendations"),
+  categoryHeat: (params?: Record<string, any>) =>
+    request.get("/dashboard/category-heat", { params }),
 }
 
 export const usersApi = {
