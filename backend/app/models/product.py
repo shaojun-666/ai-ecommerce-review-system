@@ -17,6 +17,7 @@ class Product(db.Model):
     url = db.Column(db.String(1024), default="")
     image_url = db.Column(db.String(1024), default="")
     user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    last_crawled_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=utcnow)
     updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
@@ -33,6 +34,7 @@ class Product(db.Model):
             "image_url": self.image_url,
             "user_id": self.user_id,
             "tags": [t.to_dict() for t in self.tags] if self.tags else [],
+            "last_crawled_at": self.last_crawled_at.isoformat() if self.last_crawled_at else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

@@ -7,6 +7,8 @@ from app.services.analysis_service import (
     get_trend_data,
     get_keyword_rank,
     get_latest_comments,
+    get_trending_products,
+    get_ai_recommendation,
 )
 from app.api.v1 import api_bp
 
@@ -59,6 +61,22 @@ def keywords(current_user):
 
     data = get_keyword_rank(limit)
     cache_set(cache_key, data, ttl=KEYWORDS_CACHE_TTL)
+    return success(data)
+
+
+@api_bp.route("/dashboard/trending-products", methods=["GET"])
+@require_auth
+def trending_products(current_user):
+    limit = request.args.get("limit", 4, type=int)
+    limit = min(max(limit, 1), 20)
+    data = get_trending_products(limit)
+    return success(data)
+
+
+@api_bp.route("/dashboard/ai-recommendation", methods=["GET"])
+@require_auth
+def ai_recommendation(current_user):
+    data = get_ai_recommendation()
     return success(data)
 
 

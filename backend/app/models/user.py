@@ -17,6 +17,7 @@ class User(db.Model):
     password_hash = db.Column(db.String(256), nullable=False)
     role = db.Column(db.String(20), nullable=False, default="user")  # admin | user
     is_active = db.Column(db.Boolean, default=True)
+    preferences = db.Column(db.JSON, default=dict)
     created_at = db.Column(db.DateTime, default=utcnow)
     updated_at = db.Column(db.DateTime, default=utcnow, onupdate=utcnow)
 
@@ -36,5 +37,6 @@ class User(db.Model):
             "email": self.email,
             "role": self.role,
             "is_active": self.is_active,
+            "preferences": self.preferences or {},
             "created_at": self.created_at.isoformat(),
         }

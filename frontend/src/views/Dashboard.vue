@@ -1,18 +1,78 @@
 <template>
   <div>
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px">
-      <h2 style="margin: 0">数据看板</h2>
+    <!-- Header -->
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px">
+      <h2 style="margin: 0">首页</h2>
       <div style="display: flex; align-items: center; gap: 12px">
         <span v-if="lastUpdated" style="font-size: 12px; color: #999">
           最后更新: {{ lastUpdated }}
         </span>
-        <el-button size="small" :loading="refreshing" @click="manualRefresh">
-          刷新
-        </el-button>
+        <el-button size="small" :loading="refreshing" @click="manualRefresh">刷新</el-button>
       </div>
     </div>
 
     <Loading :loading="loading">
+      <!-- 🔥 Hot Trending Products -->
+      <el-card v-if="trendingProducts.length" shadow="hover" style="margin-bottom: 20px">
+        <template #header>
+          <div style="display: flex; align-items: center; gap: 8px; font-weight: bold">
+            <span style="font-size: 20px">🔥</span> 热门趋势 · 评论增长最快
+          </div>
+        </template>
+        <el-row :gutter="16">
+          <el-col :span="6" v-for="p in trendingProducts" :key="p.id">
+            <el-card shadow="never" style="cursor: pointer; transition: all 0.2s" @click="$router.push(`/products`)" @mouseenter="$event.currentTarget.style.transform = 'translateY(-4px)'" @mouseleave="$event.currentTarget.style.transform = 'none'">
+              <div style="text-align: center">
+                <div style="font-size: 14px; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{ p.name }}</div>
+                <div style="font-size: 24px; font-weight: bold; color: #F56C6C; margin: 8px 0">
+                  ↑{{ p.growth_rate || p.comment_growth || 0 }}%
+                </div>
+                <div style="font-size: 12px; color: #999">{{ p.comment_count || 0 }} 条评论</div>
+              </div>
+            </el-card>
+          </el-col>
+        </el-row>
+      </el-card>
+
+      <!-- 📊 Category Quick Overview -->
+      <el-card v-if="categories.length" shadow="hover" style="margin-bottom: 20px">
+        <template #header>
+          <div style="display: flex; align-items: center; gap: 8px; font-weight: bold">
+            <span style="font-size: 20px">📊</span> 品类趋势速览
+          </div>
+        </template>
+        <el-row :gutter="16">
+          <el-col :span="4" v-for="cat in categories" :key="cat.id">
+            <el-card shadow="never" style="text-align: center; cursor: pointer" @click="$router.push(`/products`)">
+              <div style="font-size: 28px">{{ cat.icon || '📦' }}</div>
+              <div style="font-size: 13px; font-weight: bold; margin-top: 4px">{{ cat.name }}</div>
+              <div v-if="cat.growth" style="font-size: 12px; color: #67C23A">↑{{ cat.growth }}%</div>
+              <div style="font-size: 11px; color: #999">{{ cat.product_count || 0 }} 商品</div>
+            </el-card>
+          </el-col>
+        </el-row>
+      </el-card>
+
+      <!-- 💡 AI Selection Recommendation -->
+      <el-card v-if="aiRecommendation" shadow="hover" style="margin-bottom: 20px; background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%)">
+        <template #header>
+          <div style="display: flex; align-items: center; gap: 8px; font-weight: bold">
+            <span style="font-size: 20px">💡</span> AI 选品建议
+          </div>
+        </template>
+        <div style="display: flex; align-items: flex-start; gap: 16px">
+          <div style="flex: 1">
+            <div style="font-size: 14px; line-height: 1.6; color: #333">
+              {{ aiRecommendation }}
+            </div>
+            <el-button size="small" style="margin-top: 12px" @click="$router.push('/products/selection')">
+              查看选品中心 →
+            </el-button>
+          </div>
+        </div>
+      </el-card>
+
+      <!-- Stat Cards -->
       <el-row :gutter="20" style="margin-top: 8px">
         <el-col :span="6" v-for="stat in stats" :key="stat.label">
           <el-card shadow="hover">
@@ -24,6 +84,7 @@
         </el-col>
       </el-row>
 
+      <!-- Charts Row -->
       <el-row :gutter="20" style="margin-top: 20px">
         <el-col :span="12">
           <el-card>
@@ -55,6 +116,7 @@
         </el-col>
       </el-row>
 
+      <!-- Recent Tasks -->
       <el-card style="margin-top: 20px">
         <template #header>
           <span>最近分析任务</span>
@@ -100,6 +162,9 @@ const recentTasks = ref<any[]>([])
 const keywordData = ref<any[] | null>(null)
 const latestComments = ref<any[]>([])
 const latestLoading = ref(false)
+const trendingProducts = ref<any[]>([])
+const categories = ref<any[]>([])
+const aiRecommendation = ref("")
 
 const pieRef = ref<HTMLElement>()
 const trendRef = ref<HTMLElement>()
@@ -210,12 +275,15 @@ const resizeCharts = () => {
 const fetchData = async (silent = false) => {
   if (!silent) loading.value = true
   try {
-    const [overviewRes, trendRes, taskRes, keywordRes, latestRes] = await Promise.all([
+    const [overviewRes, trendRes, taskRes, keywordRes, latestRes, trendingRes, categoriesRes, recommendRes] = await Promise.all([
       request.get("/dashboard/overview").catch(() => ({ data: null })),
       request.get("/dashboard/trend", { params: { days: 30 } }).catch(() => ({ data: [] })),
       analysisApi.listTasks({ per_page: 10 }).catch(() => ({ data: { items: [] } })),
       request.get("/dashboard/keywords", { params: { limit: 50 } }).catch(() => ({ data: [] })),
       request.get("/dashboard/latest-comments", { params: { limit: 10 } }).catch(() => ({ data: [] })),
+      request.get("/dashboard/trending-products").catch(() => ({ data: [] })),
+      request.get("/categories", { params: { tree: true } }).catch(() => ({ data: [] })),
+      request.get("/dashboard/ai-recommendation").catch(() => ({ data: null })),
     ])
 
     const overview = overviewRes?.data
@@ -232,14 +300,26 @@ const fetchData = async (silent = false) => {
     if (trendRes?.data) renderTrend(trendRes.data)
     recentTasks.value = taskRes?.data?.items || []
 
-    // Word cloud
     const wcData = keywordRes?.data || []
     keywordData.value = wcData
     await nextTick()
     renderWordCloud(wcData)
 
-    // Latest comments
     latestComments.value = latestRes?.data || []
+    trendingProducts.value = trendingRes?.data || []
+
+    // Flatten category tree recursively
+    const flattenTree = (nodes: any[]): any[] => {
+      const result: any[] = []
+      for (const n of nodes) {
+        if (n.children?.length) result.push(...flattenTree(n.children))
+        else result.push(n)
+      }
+      return result
+    }
+    categories.value = flattenTree(tree).slice(0, 6)
+
+    aiRecommendation.value = recommendRes?.data?.recommendation || ""
 
     updateTimestamp()
   } catch {
@@ -257,7 +337,6 @@ const manualRefresh = () => {
 
 onMounted(async () => {
   await fetchData()
-  // WebSocket live updates (fallback to 30s polling)
   try {
     const ws = connectSocket()
     ws.on("dashboard_update", () => { fetchData(true) })

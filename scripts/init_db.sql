@@ -136,6 +136,6 @@ ON CONFLICT (username) DO NOTHING;
 -- Default user (password: user123)
 INSERT INTO users (username, email, password_hash, role)
 VALUES ('user', 'user@example.com',
-        'scrypt:32768:8:1$yLhZTf3axooFQ6X4$b7b1d7f1e5a7d6b6c7a5130c30e8d7a6e3d0a3b8c5f6e7d8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f',
+        'scrypt:32768:8:1$6enrJJlrWE1jWf32$608882313a3ab36f38b44e0833cc9ceede2712818553fc75ab2e531b654383af0554bfed53aa7ef595e50cb7bf94d0a5c05e43e2eb4de0529fa0c332f36358bf',
         'user')
 ON CONFLICT (username) DO NOTHING;

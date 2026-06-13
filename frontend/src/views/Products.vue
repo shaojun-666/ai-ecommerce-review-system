@@ -5,15 +5,30 @@
     <!-- Toolbar -->
     <el-card style="margin-top: 16px">
       <el-row :gutter="16">
-        <el-col :span="8">
+        <el-col :span="6">
           <el-input v-model="searchKeyword" placeholder="搜索商品名称" clearable @input="loadProducts" />
+        </el-col>
+        <el-col :span="4">
+          <el-select v-model="platformFilter" placeholder="平台" clearable style="width: 100%" @change="loadProducts">
+            <el-option label="京东" value="jd" />
+            <el-option label="淘宝" value="taobao" />
+            <el-option label="拼多多" value="pdd" />
+          </el-select>
         </el-col>
         <el-col :span="4">
           <el-select v-model="tagFilter" placeholder="标签筛选" clearable style="width: 100%" @change="loadProducts">
             <el-option v-for="t in tags" :key="t.id" :label="t.name" :value="t.id" />
           </el-select>
         </el-col>
-        <el-col :span="12" style="text-align: right">
+        <el-col :span="10" style="text-align: right">
+          <el-button-group style="margin-right: 12px">
+            <el-button :type="viewMode === 'table' ? 'primary' : 'default'" size="small" @click="viewMode = 'table'">
+              表格
+            </el-button>
+            <el-button :type="viewMode === 'card' ? 'primary' : 'default'" size="small" @click="viewMode = 'card'">
+              卡片
+            </el-button>
+          </el-button-group>
           <el-button type="primary" @click="showAddDialog = true">添加商品</el-button>
           <el-button @click="showBatchDialog = true">批量导入</el-button>
           <el-button @click="showTagDialog = true" v-if="userStore.isAdmin">管理标签</el-button>
@@ -21,8 +36,63 @@
       </el-row>
     </el-card>
 
+    <!-- Product card grid -->
+    <el-card v-if="viewMode === 'card'" style="margin-top: 16px">
+      <div v-loading="loading">
+        <el-row :gutter="16" v-if="products.length">
+          <el-col :span="6" v-for="p in products" :key="p.id" style="margin-bottom: 16px">
+            <el-card shadow="hover" style="cursor: pointer; transition: all 0.2s; height: 100%"
+              @click="$router.push(`/products/${p.id}`)"
+              @mouseenter="$event.currentTarget.style.transform = 'translateY(-4px)'; $event.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.12)'"
+              @mouseleave="$event.currentTarget.style.transform = 'none'; $event.currentTarget.style.boxShadow = 'none'">
+              <div style="text-align: center">
+                <div style="font-size: 40px; margin-bottom: 8px">📦</div>
+                <div style="font-size: 14px; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap" :title="p.name">
+                  {{ p.name }}
+                </div>
+                <el-tag size="small" style="margin-top: 4px">{{ p.platform || '未指定' }}</el-tag>
+              </div>
+              <el-divider style="margin: 12px 0" />
+              <div style="display: flex; justify-content: space-around; text-align: center; font-size: 12px">
+                <div>
+                  <div style="font-weight: bold; color: #409EFF; font-size: 16px">{{ p.monitoring?.comment_count || 0 }}</div>
+                  <div style="color: #999">评论</div>
+                </div>
+                <div>
+                  <div v-if="p.monitoring?.latest_price" style="font-weight: bold; color: #F56C6C; font-size: 16px">¥{{ p.monitoring.latest_price }}</div>
+                  <div v-else style="color: #999; font-size: 16px">-</div>
+                  <div style="color: #999">价格</div>
+                </div>
+                <div>
+                  <div v-if="p.monitoring?.comment_growth_14d != null" :style="{ fontWeight: 'bold', fontSize: '16px', color: p.monitoring.comment_growth_14d > 0 ? '#F56C6C' : '#67C23A' }">
+                    {{ p.monitoring.comment_growth_14d > 0 ? '+' : '' }}{{ p.monitoring.comment_growth_14d }}%
+                  </div>
+                  <div v-else style="color: #999; font-size: 16px">-</div>
+                  <div style="color: #999">增长</div>
+                </div>
+              </div>
+              <div v-if="p.tags?.length" style="margin-top: 8px; text-align: center">
+                <el-tag v-for="t in p.tags" :key="t.id" :color="t.color" style="color: #fff; margin: 2px" size="small">{{ t.name }}</el-tag>
+              </div>
+            </el-card>
+          </el-col>
+        </el-row>
+        <EmptyState v-else :loading="loading" :data="products" description="暂无商品数据" />
+      </div>
+      <el-pagination
+        v-if="total > perPage"
+        v-model:current-page="page"
+        :page-size="perPage"
+        :total="total"
+        layout="prev, pager, next"
+        small
+        style="margin-top: 16px; justify-content: center"
+        @current-change="loadProducts"
+      />
+    </el-card>
+
     <!-- Product table -->
-    <el-card style="margin-top: 16px">
+    <el-card v-if="viewMode === 'table'" style="margin-top: 16px">
       <el-table :data="products" v-loading="loading" stripe style="width: 100%">
         <el-table-column prop="id" label="ID" width="60" />
         <el-table-column prop="name" label="商品名称" min-width="200" show-overflow-tooltip />
@@ -207,6 +277,7 @@ import { ElMessage, ElMessageBox } from "element-plus"
 import { productsApi } from "@/api"
 import request from "@/utils/request"
 import { useUserStore } from "@/store"
+import EmptyState from "@/components/common/EmptyState.vue"
 
 const userStore = useUserStore()
 
@@ -217,7 +288,11 @@ const page = ref(1)
 const perPage = 20
 const total = ref(0)
 const searchKeyword = ref("")
+const platformFilter = ref("")
 const tagFilter = ref<number | undefined>()
+const viewMode = ref<"table" | "card">(
+  (localStorage.getItem("productViewMode") as "table" | "card") || "card"
+)
 
 // Add/Edit
 const showAddDialog = ref(false)
@@ -275,7 +350,6 @@ const showPriceChart = async (product: any) => {
       return
     }
 
-    // Render ECharts after DOM update
     await nextTick()
     renderPriceChart(prices, data?.current_price)
   } catch {
@@ -287,71 +361,41 @@ const showPriceChart = async (product: any) => {
 
 const renderPriceChart = (prices: any[], currentPrice: number | null) => {
   if (!priceChartRef.value) return
-
-  // Lazy-load echarts
   import("echarts").then((echarts) => {
     if (priceChartInstance) priceChartInstance.dispose()
     priceChartInstance = echarts.init(priceChartRef.value!)
-
     const dates = prices.map((p: any) => {
       const d = new Date(p.recorded_at)
       return `${d.getMonth() + 1}/${d.getDate()}`
     })
     const vals = prices.map((p: any) => p.price)
-
     priceChartInstance.setOption({
-      tooltip: {
-        trigger: 'axis',
-        formatter: (params: any) => {
-          const p = params[0]
-          return `${p.axisValue}<br/>¥${p.value.toFixed(2)}`
-        }
-      },
+      tooltip: { trigger: 'axis', formatter: (params: any) => { const p = params[0]; return `${p.axisValue}<br/>¥${p.value.toFixed(2)}` } },
       xAxis: { type: 'category', data: dates, axisLabel: { rotate: 45, fontSize: 11 } },
-      yAxis: {
-        type: 'value',
-        axisLabel: { formatter: '¥{value}' },
-        min: (val: any) => Math.max(0, Math.floor(val.min * 0.95)),
-      },
+      yAxis: { type: 'value', axisLabel: { formatter: '¥{value}' }, min: (val: any) => Math.max(0, Math.floor(val.min * 0.95)) },
       grid: { left: 60, right: 20, bottom: 60, top: 20 },
       series: [{
-        type: 'line',
-        data: vals,
-        smooth: true,
-        symbol: 'circle',
-        symbolSize: 6,
+        type: 'line', data: vals, smooth: true, symbol: 'circle', symbolSize: 6,
         lineStyle: { color: '#f56c6c', width: 2 },
         areaStyle: { color: 'rgba(245, 108, 108, 0.1)' },
         itemStyle: { color: '#f56c6c' },
-        markLine: currentPrice ? {
-          data: [{ yAxis: currentPrice }],
-          silent: true,
-          lineStyle: { color: '#909399', type: 'dashed' },
-          label: { formatter: `当前 ¥${currentPrice}`, fontSize: 11 },
-        } : undefined,
+        markLine: currentPrice ? { data: [{ yAxis: currentPrice }], silent: true, lineStyle: { color: '#909399', type: 'dashed' }, label: { formatter: `当前 ¥${currentPrice}`, fontSize: 11 } } : undefined,
       }],
     })
   })
 }
 
-// Cleanup chart on dialog close
 watch(showPriceDialog, (v) => {
   if (!v && priceChartInstance) {
-    setTimeout(() => {
-      priceChartInstance?.dispose()
-      priceChartInstance = null
-    }, 300)
+    setTimeout(() => { priceChartInstance?.dispose(); priceChartInstance = null }, 300)
   }
 })
 
-const batchPreview = computed(() => {
-  return batchText.value.trim().split("\n").filter((l: string) => l.trim()).length
-})
+const batchPreview = computed(() => batchText.value.trim().split("\n").filter((l: string) => l.trim()).length)
 
-onMounted(() => {
-  loadProducts()
-  loadTags()
-})
+onMounted(() => { loadProducts(); loadTags() })
+
+watch(viewMode, (v) => localStorage.setItem("productViewMode", v))
 
 const loadProducts = async () => {
   loading.value = true
@@ -359,178 +403,69 @@ const loadProducts = async () => {
     const params: Record<string, any> = { page: page.value, per_page: perPage }
     if (searchKeyword.value) params.q = searchKeyword.value
     if (tagFilter.value) params.tag_id = tagFilter.value
+    if (platformFilter.value) params.platform = platformFilter.value
     const res = await productsApi.list(params)
     const d = res.data
     products.value = d?.data?.items || d?.data?.data || d?.data || []
     total.value = d?.data?.meta?.total || d?.meta?.total || 0
-  } catch {
-    products.value = []
-  } finally {
-    loading.value = false
-  }
+  } catch { products.value = [] }
+   finally { loading.value = false }
 }
 
 const loadTags = async () => {
-  try {
-    const res = await request.get("/tags")
-    tags.value = res.data?.data || []
-  } catch {
-    tags.value = []
-  }
+  try { const res = await request.get("/tags"); tags.value = res.data?.data || [] }
+  catch { tags.value = [] }
 }
 
-const taskStatusMap: Record<string, string> = {
-  pending: "info", processing: "warning", crawling: "warning",
-  filtering: "warning", completed: "success", failed: "danger",
-}
+const taskStatusMap: Record<string, string> = { pending: "info", processing: "warning", crawling: "warning", filtering: "warning", completed: "success", failed: "danger" }
 const taskStatusType = (s: string) => taskStatusMap[s] || "info"
-const taskStatusLabel = (s: string) => {
-  const m: Record<string, string> = { pending: "待处理", crawling: "采集中", filtering: "过滤中", completed: "已完成", failed: "失败" }
-  return m[s] || s
-}
-
-const freshnessType = (dateStr: string) => {
-  if (!dateStr) return "info"
-  const diff = Date.now() - new Date(dateStr).getTime()
-  const hours = diff / 3600000
-  if (hours < 24) return "success"
-  if (hours < 72) return "warning"
-  return "danger"
-}
-const freshnessLabel = (dateStr: string) => {
-  if (!dateStr) return "未知"
-  const diff = Date.now() - new Date(dateStr).getTime()
-  const hours = Math.round(diff / 3600000)
-  if (hours < 1) return "刚刚"
-  if (hours < 24) return `${hours}小时前`
-  const days = Math.round(hours / 24)
-  return `${days}天前`
-}
-const formatTime = (s: string) => {
-  if (!s) return "-"
-  return new Date(s).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
-}
+const taskStatusLabel = (s: string) => { const m: Record<string, string> = { pending: "待处理", crawling: "采集中", filtering: "过滤中", completed: "已完成", failed: "失败" }; return m[s] || s }
+const freshnessType = (dateStr: string) => { if (!dateStr) return "info"; const diff = Date.now() - new Date(dateStr).getTime(); const hours = diff / 3600000; if (hours < 24) return "success"; if (hours < 72) return "warning"; return "danger" }
+const freshnessLabel = (dateStr: string) => { if (!dateStr) return "未知"; const diff = Date.now() - new Date(dateStr).getTime(); const hours = Math.round(diff / 3600000); if (hours < 1) return "刚刚"; if (hours < 24) return `${hours}小时前`; const days = Math.round(hours / 24); return `${days}天前` }
+const formatTime = (s: string) => { if (!s) return "-"; return new Date(s).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) }
 
 const editProduct = (product: any) => {
   editingProduct.value = product
-  productForm.value = {
-    name: product.name,
-    platform: product.platform || "",
-    url: product.url || "",
-    image_url: product.image_url || "",
-  }
+  productForm.value = { name: product.name, platform: product.platform || "", url: product.url || "", image_url: product.image_url || "" }
   showAddDialog.value = true
 }
 
 const saveProduct = async () => {
-  if (!productForm.value.name.trim()) {
-    ElMessage.warning("请输入商品名称")
-    return
-  }
+  if (!productForm.value.name.trim()) { ElMessage.warning("请输入商品名称"); return }
   saving.value = true
   try {
-    if (editingProduct.value) {
-      await request.put(`/products/${editingProduct.value.id}`, productForm.value)
-      ElMessage.success("商品已更新")
-    } else {
-      await request.post("/products", productForm.value)
-      ElMessage.success("商品已创建")
-    }
-    showAddDialog.value = false
-    editingProduct.value = null
-    productForm.value = { name: "", platform: "", url: "", image_url: "" }
-    await loadProducts()
-  } catch {
-    // handled by interceptor
-  } finally {
-    saving.value = false
-  }
+    if (editingProduct.value) { await request.put(`/products/${editingProduct.value.id}`, productForm.value); ElMessage.success("商品已更新") }
+    else { await request.post("/products", productForm.value); ElMessage.success("商品已创建") }
+    showAddDialog.value = false; editingProduct.value = null; productForm.value = { name: "", platform: "", url: "", image_url: "" }; await loadProducts()
+  } catch { /* handled */ } finally { saving.value = false }
 }
 
 const deleteProduct = async (product: any) => {
   try {
-    await ElMessageBox.confirm(`确定删除商品「${product.name}」？相关评论也将被删除。`, "确认删除", {
-      confirmButtonText: "删除", cancelButtonText: "取消", type: "warning",
-    })
-    await request.delete(`/products/${product.id}`)
-    ElMessage.success("已删除")
-    await loadProducts()
-  } catch {
-    // cancelled or error
-  }
+    await ElMessageBox.confirm(`确定删除商品「${product.name}」？相关评论也将被删除。`, "确认删除", { confirmButtonText: "删除", cancelButtonText: "取消", type: "warning" })
+    await request.delete(`/products/${product.id}`); ElMessage.success("已删除"); await loadProducts()
+  } catch { /* cancelled or error */ }
 }
 
-const manageTags = (product: any) => {
-  tagAssignProduct.value = product
-  selectedTagIds.value = (product.tags || []).map((t: any) => t.id)
-  showTagAssignDialog.value = true
-}
-
+const manageTags = (product: any) => { tagAssignProduct.value = product; selectedTagIds.value = (product.tags || []).map((t: any) => t.id); showTagAssignDialog.value = true }
 const saveTagAssignment = async () => {
-  if (!tagAssignProduct.value) return
-  savingTags.value = true
-  try {
-    await request.put(`/products/${tagAssignProduct.value.id}/tags`, { tag_ids: selectedTagIds.value })
-    ElMessage.success("标签已更新")
-    showTagAssignDialog.value = false
-    await loadProducts()
-  } catch {
-    // handled by interceptor
-  } finally {
-    savingTags.value = false
-  }
+  if (!tagAssignProduct.value) return; savingTags.value = true
+  try { await request.put(`/products/${tagAssignProduct.value.id}/tags`, { tag_ids: selectedTagIds.value }); ElMessage.success("标签已更新"); showTagAssignDialog.value = false; await loadProducts() }
+  catch { /* handled */ } finally { savingTags.value = false }
 }
-
 const createTag = async () => {
   if (!newTagName.value.trim()) return
-  try {
-    await request.post("/tags", { name: newTagName.value.trim(), color: newTagColor.value })
-    ElMessage.success("标签已创建")
-    newTagName.value = ""
-    await loadTags()
-  } catch {
-    // handled by interceptor
-  }
+  try { await request.post("/tags", { name: newTagName.value.trim(), color: newTagColor.value }); ElMessage.success("标签已创建"); newTagName.value = ""; await loadTags() }
+  catch { /* handled */ }
 }
-
 const deleteTag = async (tag: any) => {
-  try {
-    await ElMessageBox.confirm(`确定删除标签「${tag.name}」？`, "确认", {
-      confirmButtonText: "删除", cancelButtonText: "取消", type: "warning",
-    })
-    await request.delete(`/tags/${tag.id}`)
-    ElMessage.success("标签已删除")
-    await loadTags()
-  } catch {
-    // cancelled
-  }
+  try { await ElMessageBox.confirm(`确定删除标签「${tag.name}」？`, "确认", { confirmButtonText: "删除", cancelButtonText: "取消", type: "warning" }); await request.delete(`/tags/${tag.id}`); ElMessage.success("标签已删除"); await loadTags() }
+  catch { /* cancelled */ }
 }
-
 const batchImport = async () => {
-  const lines = batchText.value.trim().split("\n").filter((l: string) => l.trim())
-  if (!lines.length) return
-  batchLoading.value = true
-  let success = 0
-  let fail = 0
-  for (const line of lines) {
-    const parts = line.split(",").map((s: string) => s.trim())
-    const name = parts[0]
-    if (!name) { fail++; continue }
-    try {
-      await request.post("/products", {
-        name,
-        platform: parts[1] || "",
-        url: parts[2] || "",
-      })
-      success++
-    } catch {
-      fail++
-    }
-  }
-  batchLoading.value = false
-  showBatchDialog.value = false
-  batchText.value = ""
-  ElMessage.success(`导入完成: ${success} 成功, ${fail} 失败`)
-  await loadProducts()
+  const lines = batchText.value.trim().split("\n").filter((l: string) => l.trim()); if (!lines.length) return; batchLoading.value = true
+  let success = 0; let fail = 0
+  for (const line of lines) { const parts = line.split(",").map((s: string) => s.trim()); const name = parts[0]; if (!name) { fail++; continue }; try { await request.post("/products", { name, platform: parts[1] || "", url: parts[2] || "" }); success++ } catch { fail++ } }
+  batchLoading.value = false; showBatchDialog.value = false; batchText.value = ""; ElMessage.success(`导入完成: ${success} 成功, ${fail} 失败`); await loadProducts()
 }
 </script>

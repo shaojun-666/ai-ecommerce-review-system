@@ -16,7 +16,6 @@ from app.models.comment import Comment
 from app.models.product_price import ProductPrice
 from app.crawler.adapters import get_crawler
 from app.services.data_pipeline import DataPipeline
-from app.utils.cache import cache_delete_pattern
 from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
@@ -176,8 +175,9 @@ def run_crawl(self, crawl_task_id: int):
         }
         db.session.commit()
 
-        # Invalidate dashboard cache so next request gets fresh data
-        cache_delete_pattern("dashboard:*")
+        # Update last_crawled_at and invalidate dashboard cache
+        if product:
+            DataPipeline.mark_crawled(product.id)
 
         logger.info(
             "CrawlTask %s completed: %d found, %d new, %d failed",
@@ -286,3 +286,90 @@ def snapshot_prices():
         logger.info("Price snapshot: %d recorded, %d failed", recorded, failed)
 
     return {"recorded": recorded, "failed": failed}
+
+
+# ═════════════════════════════════════════════════════════════════════
+#  Auto-Discovery Tasks
+# ═════════════════════════════════════════════════════════════════════
+
+@celery_app.task(bind=True, max_retries=1)
+def run_auto_discovery(self, user_id: int):
+    """Run one cycle of auto-discovery, then reschedule if session is active.
+
+    Launched by POST /crawl/auto/start. Each cycle:
+        1. Discovers products from configured categories
+        2. Creates crawl tasks for new discoveries
+        3. Checks if auto-export is needed
+        4. Reschedules itself if the session is still active
+    """
+    from app.services.crawl_state import get_session, update_stats
+
+    sess = get_session()
+    if not sess["running"]:
+        logger.info("Auto-discovery: session not active, skipping cycle")
+        return {"status": "skipped", "reason": "session not active"}
+
+    platforms = sess["platforms"]
+    max_per = sess["max_per_category"]
+    page_limit = sess["page_limit"]
+    interval = sess["interval_minutes"]
+
+    logger.info(
+        "Auto-discovery cycle starting (platforms=%s, max_per=%d, page_limit=%d)",
+        platforms or "all", max_per, page_limit,
+    )
+
+    stats_dict = {}
+    # ── Discover ──
+    try:
+        from app.services.crawl_discovery import CrawlDiscoveryService
+        service = CrawlDiscoveryService()
+        stats = service.discover_and_create_tasks(
+            user_id=user_id,
+            platforms=platforms,
+            max_per_category=max_per,
+            auto_start=True,
+            page_limit=page_limit,
+        )
+        stats_dict = stats.to_dict()
+        logger.info("Auto-discovery cycle complete: %s", stats_dict)
+
+        update_stats(
+            discovery_runs=1,
+            total_products_found=stats.products_found,
+            total_tasks_created=stats.tasks_created,
+        )
+
+    except Exception as e:
+        logger.error("Auto-discovery cycle failed: %s", e, exc_info=True)
+
+    # ── Auto-export ──
+    try:
+        from app.services.data_exporter import DataExporter, set_last_export_count
+        from app.models.comment import Comment
+        exporter = DataExporter()
+        manifest = exporter.check_and_auto_export(threshold=500)
+        if manifest:
+            logger.info("Auto-export triggered: %s", manifest.to_dict())
+            update_stats(total_exports=1)
+            current_count = Comment.query.count()
+            set_last_export_count(current_count)
+    except Exception as e:
+        logger.warning("Auto-export check failed: %s", e)
+
+    # ── Reschedule ──
+    import time
+    time.sleep(2)  # allow stop signal to arrive
+
+    sess = get_session()
+    if sess["running"]:
+        countdown = interval * 60
+        run_auto_discovery.apply_async(args=[user_id], countdown=countdown)
+        logger.info("Auto-discovery next cycle scheduled in %d minutes", interval)
+    else:
+        logger.info("Auto-discovery session ended, no reschedule")
+
+    return {
+        "status": "completed" if sess["running"] else "stopped",
+        "stats": stats_dict,
+    }

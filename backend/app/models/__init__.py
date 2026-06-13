@@ -6,5 +6,6 @@ from app.models.crawl_task import CrawlTask
 from app.models.product_tag import ProductTag
 from app.models.product_price import ProductPrice
 from app.models.alert import Alert
+from app.models.category import Category
 
-__all__ = ["User", "Comment", "CommentAnalysis", "AnalysisTask", "Product", "CrawlTask", "ProductTag", "ProductPrice", "Alert"]
+__all__ = ["User", "Comment", "CommentAnalysis", "AnalysisTask", "Product", "CrawlTask", "ProductTag", "ProductPrice", "Alert", "Category"]

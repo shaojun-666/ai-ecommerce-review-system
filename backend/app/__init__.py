@@ -10,7 +10,6 @@ from app.config import get_config
 
 limiter = Limiter(
     key_func=get_remote_address,
-    storage_uri="redis://localhost:6379/0",
     strategy="fixed-window",
 )
 

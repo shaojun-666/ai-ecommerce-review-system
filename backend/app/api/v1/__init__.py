@@ -7,3 +7,4 @@ from app.api.v1 import crawl  # noqa: E402, F401
 from app.api.v1 import tags  # noqa: E402, F401
 from app.api.v1 import alerts  # noqa: E402, F401
 from app.api.v1 import competitors  # noqa: E402, F401
+from app.api.v1 import categories  # noqa: E402, F401

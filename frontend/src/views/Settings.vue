@@ -15,6 +15,20 @@
           </el-form-item>
         </el-form>
       </el-tab-pane>
+      <el-tab-pane label="偏好设置">
+        <div style="max-width: 500px; margin-top: 20px">
+          <p style="color: #666; margin-bottom: 16px">关注品类将影响首页推荐和选品建议</p>
+          <el-checkbox-group v-model="preferredCategories">
+            <el-checkbox v-for="cat in allCategories" :key="cat.id" :label="cat.id" :value="cat.id">
+              {{ cat.icon }} {{ cat.name }}
+            </el-checkbox>
+          </el-checkbox-group>
+          <p v-if="allCategories.length === 0" style="color: #999; margin: 12px 0">暂无品类数据</p>
+          <div style="margin-top: 20px">
+            <el-button type="primary" @click="savePreferences">保存偏好</el-button>
+          </div>
+        </div>
+      </el-tab-pane>
       <el-tab-pane label="密码修改">
         <el-form :model="passwordForm" label-width="120px" style="max-width: 500px; margin-top: 20px">
           <el-form-item label="当前密码">
@@ -33,7 +47,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from "vue"
+import { ref, reactive, onMounted } from "vue"
 import { ElMessage } from "element-plus"
 import { useUserStore } from "@/store"
 import request from "@/utils/request"
@@ -48,6 +62,44 @@ const profileForm = reactive({
 const passwordForm = reactive({
   oldPassword: "",
   newPassword: "",
+})
+
+// Preferences
+const allCategories = ref<any[]>([])
+const preferredCategories = ref<number[]>([])
+
+const loadCategories = async () => {
+  try {
+    const res = await request.get("/categories", { params: { tree: true } })
+    // Flatten tree to get leaf categories
+    const flat: any[] = []
+    const tree = res.data?.data || []
+    for (const root of tree) {
+      if (root.children) flat.push(...root.children)
+      else flat.push(root)
+    }
+    allCategories.value = flat
+  } catch { allCategories.value = [] }
+}
+
+const loadPreferences = async () => {
+  try {
+    const res = await request.get("/users/me/preferences")
+    const prefs = res.data?.preferences || {}
+    preferredCategories.value = prefs.favored_categories || []
+  } catch { /* ignore */ }
+}
+
+const savePreferences = async () => {
+  try {
+    await request.put("/users/me/preferences", { favored_categories: preferredCategories.value })
+    ElMessage.success("偏好已保存")
+  } catch { /* handled by interceptor */ }
+}
+
+onMounted(() => {
+  loadCategories()
+  loadPreferences()
 })
 
 const saveProfile = async () => {

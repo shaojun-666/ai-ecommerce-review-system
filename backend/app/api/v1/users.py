@@ -54,6 +54,24 @@ def change_my_password(current_user):
     return jsonify({"message": "Password updated"})
 
 
+@api_bp.route("/users/me/preferences", methods=["GET"])
+@require_auth
+def get_my_preferences(current_user):
+    return jsonify({"preferences": current_user.preferences or {}})
+
+
+@api_bp.route("/users/me/preferences", methods=["PUT"])
+@require_auth
+def update_my_preferences(current_user):
+    data = request.get_json() or {}
+    # Merge with existing preferences
+    prefs = dict(current_user.preferences or {})
+    prefs.update(data)
+    current_user.preferences = prefs
+    db.session.commit()
+    return jsonify({"message": "Preferences updated", "preferences": prefs})
+
+
 @api_bp.route("/users", methods=["GET"])
 @require_auth
 @require_admin

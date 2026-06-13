@@ -465,3 +465,58 @@ class TestDataPipelineIntegration:
             assert "http" not in call_arg
             assert "<a" not in call_arg
             assert "质量很好" in call_arg
+
+
+# ── DataFreshness tests ─────────────────────────────────────────────
+
+class TestDataFreshness:
+    def test_freshness_info_new_product(self, app, db, sample_product):
+        with app.app_context():
+            info = DataPipeline.get_freshness_info(sample_product.id)
+            assert info.product_id == sample_product.id
+            assert info.is_stale is True
+            assert info.total_comments == 0
+            assert info.recent_comments == 0
+
+    def test_freshness_info_with_comments(self, app, db):
+        with app.app_context():
+            from datetime import datetime, timezone
+            p = Product(name="测试商品", platform="jd", user_id=1)
+            db.session.add(p)
+            db.session.commit()
+
+            c = Comment(product_id=p.id, content="测试评论", rating=5, content_hash="a" * 64)
+            db.session.add(c)
+            db.session.commit()
+
+            info = DataPipeline.get_freshness_info(p.id)
+            assert info.total_comments == 1
+            assert info.is_stale is True  # no last_crawled_at
+
+    def test_freshness_to_dict(self, app, db, sample_product):
+        with app.app_context():
+            info = DataPipeline.get_freshness_info(sample_product.id)
+            d = info.to_dict()
+            assert d["product_id"] == sample_product.id
+            assert "is_stale" in d
+            assert "total_comments" in d
+
+    def test_mark_crawled(self, app, db):
+        with app.app_context():
+            from datetime import datetime, timezone
+            p = Product(name="测试商品", platform="jd", user_id=1)
+            db.session.add(p)
+            db.session.commit()
+
+            assert p.last_crawled_at is None
+            DataPipeline.mark_crawled(p.id)
+            assert p.last_crawled_at is not None
+
+    def test_quality_report(self, app, db):
+        with app.app_context():
+            report = DataPipeline.compute_quality_report()
+            assert report.total_products >= 0
+            assert report.total_comments >= 0
+            d = report.to_dict()
+            assert "stale_products" in d
+            assert "freshness_by_platform" in d
